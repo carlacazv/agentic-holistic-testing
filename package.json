@@ -2,7 +2,7 @@
   "name": "@carlacazv/holistic-qa",
   "version": "0.1.0",
   "private": true,
-  "description": "Provider-neutral runtime and Codex skills for holistic QA",
+  "description": "Provider-neutral runtime and Codex/Claude Code skills for holistic QA",
   "type": "module",
   "bin": {
     "holistic-qa": "src/cli.mjs"
@@ -29,10 +29,11 @@
   },
   "scripts": {
     "build:codex": "node scripts/build-adapter.mjs codex",
+    "build:claude": "node scripts/build-adapter.mjs claude",
     "test": "node --test test/*.test.mjs",
     "test:playwright:fixture": "playwright test --config test/fixtures/playwright/playwright.config.ts --repeat-each=3 --retries=0",
     "test:performance:fixture": "node scripts/run-performance-fixture.mjs",
-    "validate:adapter": "node scripts/build-adapter.mjs codex --check",
+    "validate:adapter": "node scripts/build-adapter.mjs codex --check && node scripts/build-adapter.mjs claude --check",
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "scan": "node scripts/scan-contamination.mjs",
     "validate:openspec": "openspec validate --all --strict --no-interactive && openspec validate --archived --strict --no-interactive",

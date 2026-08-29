@@ -31,21 +31,21 @@ async function loadManifest() {
   return manifest;
 }
 
-async function buildCodex(outputRoot) {
+async function buildLayout(outputRoot, { provider, skillsDirectory, frontmatterName }) {
   const sourceManifest = await loadManifest();
   const generated = [];
   for (const skill of sourceManifest.skills) {
     const sourcePath = path.join(root, "skills", "holistic-qa", skill.id, "instructions.md");
     const body = normalizeBody(await readFile(sourcePath, "utf8"));
     const bodyChecksum = checksum(body);
-    const directory = path.join(outputRoot, ".agents", "skills", `holistic-qa-${skill.id}`);
+    const directory = path.join(outputRoot, ...skillsDirectory, `holistic-qa-${skill.id}`);
     await mkdir(directory, { recursive: true });
     const document = [
       "---",
-      `name: holistic-qa:${skill.id}`,
+      `name: ${frontmatterName(skill.id)}`,
       `description: ${yamlString(skill.description)}`,
       "metadata:",
-      "  provider: codex",
+      `  provider: ${provider}`,
       `  source_checksum: ${bodyChecksum}`,
       "---",
       "",
@@ -56,7 +56,7 @@ async function buildCodex(outputRoot) {
   }
   const adapterManifest = {
     schema_version: 1,
-    provider: "codex",
+    provider,
     skills: generated.sort((left, right) => left.id.localeCompare(right.id)),
   };
   await mkdir(outputRoot, { recursive: true });
@@ -68,9 +68,28 @@ async function buildCodex(outputRoot) {
   return adapterManifest;
 }
 
+async function buildCodex(outputRoot) {
+  return buildLayout(outputRoot, {
+    provider: "codex",
+    skillsDirectory: [".agents", "skills"],
+    frontmatterName: (id) => `holistic-qa:${id}`,
+  });
+}
+
+async function buildClaude(outputRoot) {
+  return buildLayout(outputRoot, {
+    provider: "claude",
+    skillsDirectory: [".claude", "skills"],
+    frontmatterName: (id) => `holistic-qa-${id}`,
+  });
+}
+
+const PROVIDERS = Object.freeze({ codex: buildCodex, claude: buildClaude });
+
 export async function buildAdapter(provider, outputRoot) {
-  if (provider !== "codex") throw new TypeError(`Unsupported v1 provider: ${provider}`);
-  return buildCodex(outputRoot);
+  const builder = PROVIDERS[provider];
+  if (!builder) throw new TypeError(`Unsupported v1 provider: ${provider}`);
+  return builder(outputRoot);
 }
 
 async function run() {
@@ -78,7 +97,7 @@ async function run() {
   if (!provider) throw new TypeError("Provider is required");
   const check = option === "--check";
   const outputRoot = check
-    ? await mkdtemp(path.join(os.tmpdir(), "holistic-qa-codex-"))
+    ? await mkdtemp(path.join(os.tmpdir(), `holistic-qa-${provider}-`))
     : path.join(root, "dist", provider);
   try {
     const result = await buildAdapter(provider, outputRoot);
