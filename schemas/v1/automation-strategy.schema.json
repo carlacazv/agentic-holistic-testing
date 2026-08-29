@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:automation-strategy",
+  "title": "Holistic QA automation strategy",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["test_case_id", "recommended_level", "unit_suitable", "component_suitable", "api_suitable", "browser_suitable", "manual_required", "impact_value", "stability", "cost", "decision", "approved", "rationale"]
+  }
+}
