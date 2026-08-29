@@ -1,14 +1,81 @@
 # Holistic QA
 
-Holistic QA is a provider-neutral QA runtime and a set of independently callable Codex skills. The runtime makes QA outputs traceable, checksummed, permission-gated, and explicit about incomplete coverage.
+Holistic QA is a provider-neutral QA runtime and a set of independently callable skills packaged for both Codex and Claude Code. The runtime makes QA outputs traceable, checksummed, permission-gated, and explicit about incomplete coverage.
 
-The current construction provides the foundation contract, Codex adapter pipeline, and independently callable plan, review-plan, automation-strategy, implement-playwright, explore, accessibility, and performance skills. Remaining skills are added incrementally in this order: report and cycle. Claude Code packaging is planned for phase 2 and is not supported by the v1 adapter.
+The current construction provides the foundation contract, Codex and Claude Code adapter pipelines, and independently callable plan, review-plan, automation-strategy, implement-playwright, explore, accessibility, and performance skills. Remaining skills are added incrementally in this order: report and cycle.
 
 ## Requirements
 
-- Node.js 22 or later
+- Node.js 22 or later (pinned to exactly 22 in `mise.toml` if you use [mise](https://mise.jdx.dev/))
 - npm configured for `https://registry.npmjs.org/`
 - OpenSpec 1.10.0 for specification workflow validation
+
+## Installation
+
+Holistic QA is source-installed. `package.json` sets `"private": true`, so it is never published to a registry; both the packaged skills and the runtime library are consumed straight from a checkout.
+
+1. Clone the repository and enter it:
+
+   ```sh
+   git clone https://github.com/carlacazv/agentic-holistic-testing.git
+   cd agentic-holistic-testing
+   ```
+
+2. Install the pinned Node.js toolchain, then dependencies and both provider layouts, with one command:
+
+   ```sh
+   mise trust . && mise install   # installs Node 22 from mise.toml
+   mise run setup                 # npm ci, then build both dist/codex and dist/claude
+   ```
+
+   Without mise, run the equivalent steps directly (Node 22+ must already be on `PATH`):
+
+   ```sh
+   npm ci --ignore-scripts --registry=https://registry.npmjs.org/
+   npm run build:codex    # writes dist/codex/.agents/skills/holistic-qa-<id>/
+   npm run build:claude   # writes dist/claude/.claude/skills/holistic-qa-<id>/
+   ```
+
+   Every generated `SKILL.md` embeds a checksum of its provider-neutral source under `skills/holistic-qa/<id>/instructions.md`; `mise run validate:adapter` (or `npm run validate:adapter`) rebuilds both providers into a temporary directory and fails if a generated body ever drifts from that source.
+
+3. Copy the generated skill directories into the project where you want to invoke them - there is no publish step or auto-sync, so re-run `mise run build:all` (or the matching `build:*` command) and re-copy whenever this repository updates:
+
+   - Codex: copy `dist/codex/.agents/skills/holistic-qa-*` into `<your-project>/.agents/skills/`.
+   - Claude Code: copy `dist/claude/.claude/skills/holistic-qa-*` into `<your-project>/.claude/skills/`.
+
+4. Confirm the skills are discovered: Codex should list `holistic-qa:plan` and the other declared skills through its own skill listing, and Claude Code should list `holistic-qa-plan` and the rest through its `Skill` tool or `/help`.
+
+To use the runtime library directly (`RunStore` and the core/stage helpers, shown next) instead of only the packaged skills, add this repository as a git dependency in your own `package.json` rather than installing from a registry:
+
+```json
+"dependencies": {
+  "@carlacazv/holistic-qa": "github:carlacazv/agentic-holistic-testing"
+}
+```
+
+### Task runner (mise)
+
+Every npm script has a matching [mise](https://mise.jdx.dev/) task under `.mise/tasks/`, organized by area; `mise.toml` pins Node 22 so every task runs on the right toolchain without touching your global Node install. Run `mise tasks` for the full list with descriptions, or use one directly:
+
+```sh
+mise run setup               # npm ci + build both provider layouts (first run)
+mise run node:install        # npm ci
+mise run node:clean          # remove node_modules/ and dist/
+mise run build:codex         # build only the Codex layout
+mise run build:claude        # build only the Claude Code layout
+mise run build:all           # build both
+mise run test:unit           # node --test
+mise run test:playwright     # Playwright fixture suite
+mise run test:performance    # Lighthouse/API performance fixture
+mise run test:all            # every test layer above
+mise run validate:schemas    # JSON Schemas + pinned browser integration
+mise run validate:adapter    # rebuild + checksum-verify both adapters
+mise run validate:openspec   # active + archived OpenSpec artifacts
+mise run scan                # credential / private-registry contamination scan
+mise run validate:all        # the full npm run validate pipeline
+```
+
+Task scripts are plain executable bash under `.mise/tasks/<area>/<name>` (path segments join with `:` into the task name, e.g. `.mise/tasks/build/codex` → `build:codex`); each delegates to the matching `npm run` script, so both interfaces always do the same thing.
 
 ## Foundation workflow
 
@@ -50,8 +117,6 @@ Invoke `holistic-qa:plan` with requirements or another authoritative behavior so
 
 Every accepted requirement and identified risk must be linked to tests or explicitly disposed as deferred, waived, externally covered, or not testable with rationale. Completion therefore means 100% accounted scope, not that every item was necessarily selected for execution.
 
-Build the Codex installation layout with `npm run build:codex`. The generated skill is under `dist/codex/.agents/skills/holistic-qa-plan/` and its manifest records the provider-neutral source checksum.
-
 Invoke `holistic-qa:review-plan` with a checksum-valid plan run. It preserves the original, validates the improved bundle, and returns exact findings and modifications with before/after metrics. A resolved finding without a linked modification or a metric regression is rejected.
 
 Invoke `holistic-qa:automation-strategy` with the reviewed plan. It assesses every case, recommends the lowest effective unit/component/API/browser/manual level, and emits a separate approval-gated list for Playwright API and browser implementation. It never generates code.
@@ -76,13 +141,14 @@ Invoke `holistic-qa:performance` with explicit conditions and budgets. Without b
 
 ## Validation
 
+Contributors, after installing dependencies (Installation step 2), run:
+
 ```sh
-npm ci --ignore-scripts --registry=https://registry.npmjs.org/
-npm run validate
+mise run validate:all   # or: npm run validate
 ```
 
-`npm run validate` checks schemas, deterministic behavior, failure scenarios, the clean Codex adapter build, OpenSpec artifacts, registry isolation, credential patterns, and prohibited private-organization contamination. No external defect publication or state-changing execution occurs in the foundation runtime.
+`npm run validate` checks schemas, deterministic behavior, failure scenarios, the clean Codex and Claude Code adapter builds, OpenSpec artifacts, registry isolation, credential patterns, and prohibited private-organization contamination. No external defect publication or state-changing execution occurs in the foundation runtime.
 
 ## Limitations
 
-The foundation does not yet execute QA stages, publish packages, submit marketplace entries, provide a Claude Code distribution, test mobile or desktop applications, perform penetration testing, or run backend load tests.
+The foundation does not yet execute QA stages, publish packages, submit marketplace entries, list either adapter in a provider marketplace, test mobile or desktop applications, perform penetration testing, or run backend load tests.
