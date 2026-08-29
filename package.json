@@ -22,16 +22,18 @@
     "node": ">=22"
   },
   "devDependencies": {
-    "@fission-ai/openspec": "1.10.0"
+    "@fission-ai/openspec": "1.10.0",
+    "@playwright/test": "1.62.1"
   },
   "scripts": {
     "build:codex": "node scripts/build-adapter.mjs codex",
-    "test": "node --test",
+    "test": "node --test test/*.test.mjs",
+    "test:playwright:fixture": "playwright test --config test/fixtures/playwright/playwright.config.ts --repeat-each=3 --retries=0",
     "validate:adapter": "node scripts/build-adapter.mjs codex --check",
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "scan": "node scripts/scan-contamination.mjs",
     "validate:openspec": "openspec validate --all --strict --no-interactive && openspec validate --archived --strict --no-interactive",
-    "validate": "npm run validate:schemas && npm test && npm run validate:adapter && npm run validate:openspec && npm run scan"
+    "validate": "npm run validate:schemas && npm test && npm run test:playwright:fixture && npm run validate:adapter && npm run validate:openspec && npm run scan"
   },
   "license": "MIT"
 }

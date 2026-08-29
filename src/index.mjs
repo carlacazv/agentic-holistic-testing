@@ -12,3 +12,4 @@ export * from "./core/validation.mjs";
 export * from "./stages/plan.mjs";
 export * from "./stages/review-plan.mjs";
 export * from "./stages/automation-strategy.mjs";
+export * from "./stages/implement-playwright.mjs";

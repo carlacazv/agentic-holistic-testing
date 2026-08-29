@@ -12,6 +12,10 @@
     {
       "id": "automation-strategy",
       "description": "Choose the lowest effective automation level and produce approval-gated Playwright API and browser candidates."
+    },
+    {
+      "id": "implement-playwright",
+      "description": "Implement only approved Playwright API and browser candidates as verified TypeScript tests without accepted flakiness."
     }
   ]
 }
