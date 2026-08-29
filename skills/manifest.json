@@ -3,30 +3,44 @@
   "skills": [
     {
       "id": "plan",
+      "track": "pipeline",
+      "requires": [],
       "description": "Create a risk-prioritized, technique-driven test plan with complete requirement and risk traceability."
     },
     {
       "id": "review-plan",
+      "track": "pipeline",
+      "requires": ["plan"],
       "description": "Review and improve a plan with exact findings, modifications, checksums, and before/after coverage metrics."
     },
     {
       "id": "automation-strategy",
+      "track": "pipeline",
+      "requires": ["review-plan"],
       "description": "Choose the lowest effective automation level and produce approval-gated Playwright API and browser candidates."
     },
     {
       "id": "implement-playwright",
+      "track": "pipeline",
+      "requires": ["automation-strategy"],
       "description": "Implement only approved Playwright API and browser candidates as verified TypeScript tests without accepted flakiness."
     },
     {
       "id": "explore",
+      "track": "audit",
+      "requires": [],
       "description": "Run authorized session-based exploratory testing with indexed evidence and reproducible local defect folders."
     },
     {
       "id": "accessibility",
+      "track": "audit",
+      "requires": [],
       "description": "Audit WCAG 2.2 AA scope with automated axe results, manual evidence, unresolved criteria, and linked defects."
     },
     {
       "id": "performance",
+      "track": "audit",
+      "requires": [],
       "description": "Evaluate declared performance budgets or establish a repeatable Lighthouse and API timing baseline without inventing an SLA."
     }
   ]
