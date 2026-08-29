@@ -1,6 +1,5 @@
 import { canonicalJson } from "../core/canonical.mjs";
 import { checksum } from "../core/checksum.mjs";
-import { serializeCsv } from "../core/csv.mjs";
 import { planMetrics, validatePlanBundle } from "./plan.mjs";
 
 const PLAN_COLLECTIONS = Object.freeze([
@@ -13,6 +12,11 @@ const PLAN_COLLECTIONS = Object.freeze([
 ]);
 
 const REMOVAL_OPERATIONS = Object.freeze(["remove", "merge"]);
+
+export const REVIEW_MODES = Object.freeze(["apply", "complement"]);
+
+const RECORD_COLLECTIONS = Object.freeze(["requirements", "risks", "test_cases", "test_steps"]);
+const LINK_COLLECTIONS = Object.freeze(["requirement_test_links", "risk_test_links"]);
 
 function structuralErrors(bundle, side) {
   if (bundle === null || typeof bundle !== "object" || Array.isArray(bundle)) {
@@ -41,12 +45,37 @@ function removalsWithoutModification(beforeRecords, afterIds, modifications, col
   return errors;
 }
 
-export function reviewPlan({ before, after, findings = [], modifications = [] }) {
+function complementErrors(before, after) {
+  const errors = [];
+  for (const collection of RECORD_COLLECTIONS) {
+    const afterRecords = new Map(identified(after[collection]).map((record) => [record.id, record]));
+    for (const record of identified(before[collection])) {
+      const kept = afterRecords.get(record.id);
+      if (kept === undefined) {
+        errors.push(`/complement/${collection}/${record.id}: a complement must not remove an existing record`);
+      } else if (canonicalJson(kept) !== canonicalJson(record)) {
+        errors.push(`/complement/${collection}/${record.id}: a complement must not change an existing record`);
+      }
+    }
+  }
+  for (const collection of LINK_COLLECTIONS) {
+    const afterLinks = new Set((after[collection] ?? []).map((link) => canonicalJson(link)));
+    for (const [index, link] of (before[collection] ?? []).entries()) {
+      if (!afterLinks.has(canonicalJson(link))) {
+        errors.push(`/complement/${collection}/${index}: a complement must not remove an existing link`);
+      }
+    }
+  }
+  return errors;
+}
+
+export function reviewPlan({ before, after, findings = [], modifications = [], mode }) {
   const structural = [...structuralErrors(before, "before"), ...structuralErrors(after, "after")];
   if (structural.length > 0) {
     return {
       valid: false,
       errors: structural,
+      mode,
       before_validation_errors: [],
       after_validation_errors: [],
       before_metrics: null,
@@ -56,6 +85,7 @@ export function reviewPlan({ before, after, findings = [], modifications = [] })
   }
 
   const errors = [];
+  if (!REVIEW_MODES.includes(mode)) errors.push(`/mode: expected one of ${REVIEW_MODES.join(", ")}`);
   const beforeValidation = validatePlanBundle(before);
   const afterValidation = validatePlanBundle(after);
   if (!afterValidation.valid) errors.push(...afterValidation.errors.map((error) => `/after${error}`));
@@ -106,20 +136,25 @@ export function reviewPlan({ before, after, findings = [], modifications = [] })
     errors.push("/modifications: review claims improvement without modifications");
   }
 
-  const afterCaseIds = new Set(identified(after.test_cases).map((record) => record.id));
-  const afterStepIds = new Set(identified(after.test_steps).map((record) => record.id));
-  errors.push(...removalsWithoutModification(before.test_cases, afterCaseIds, modifications, "test_cases"));
-  errors.push(...removalsWithoutModification(
-    before.test_steps,
-    afterStepIds,
-    modifications,
-    "test_steps",
-    (step) => afterCaseIds.has(step.test_case_id),
-  ));
+  if (mode === "complement") {
+    errors.push(...complementErrors(before, after));
+  } else {
+    const afterCaseIds = new Set(identified(after.test_cases).map((record) => record.id));
+    const afterStepIds = new Set(identified(after.test_steps).map((record) => record.id));
+    errors.push(...removalsWithoutModification(before.test_cases, afterCaseIds, modifications, "test_cases"));
+    errors.push(...removalsWithoutModification(
+      before.test_steps,
+      afterStepIds,
+      modifications,
+      "test_steps",
+      (step) => afterCaseIds.has(step.test_case_id),
+    ));
+  }
 
   return {
     valid: errors.length === 0,
     errors,
+    mode,
     before_validation_errors: beforeValidation.errors,
     after_validation_errors: afterValidation.errors,
     before_metrics: beforeMetrics,
@@ -130,47 +165,71 @@ export function reviewPlan({ before, after, findings = [], modifications = [] })
 
 export const REVIEW_PLAN_REQUIRED_ARTIFACTS = Object.freeze([
   "review-plan/improved-plan.json",
-  "review-plan/findings.csv",
-  "review-plan/modifications.csv",
-  "review-plan/before-after-metrics.json",
-  "review-plan/checksums.json",
-  "review-plan/coverage-gaps.md",
+  "review-plan/review.md",
 ]);
+
+function cell(value) {
+  return String(value ?? "").replaceAll("|", "\\|").replace(/\r?\n/g, " ");
+}
+
+function table(headers, rows) {
+  if (rows.length === 0) return "None.\n";
+  const separator = headers.map(() => "---");
+  const body = rows.map((row) => `| ${row.map(cell).join(" | ")} |`).join("\n");
+  return `| ${headers.join(" | ")} |\n| ${separator.join(" | ")} |\n${body}\n`;
+}
+
+export function reviewMarkdown(review, result) {
+  const findings = review.findings ?? [];
+  const modifications = review.modifications ?? [];
+  const open = findings.filter((finding) => finding.status === "open");
+  return [
+    "# Plan Review",
+    "",
+    `- Mode: ${result.mode}`,
+    `- Bundle before: ${result.checksums.before}`,
+    `- Bundle after: ${result.checksums.after}`,
+    "",
+    "## Findings",
+    "",
+    table(
+      ["ID", "Severity", "Target", "Status", "Summary", "Unblocker"],
+      findings.map((finding) => [finding.id, finding.severity, finding.target, finding.status, finding.summary, finding.unblocker]),
+    ),
+    "## Modifications",
+    "",
+    table(
+      ["ID", "Finding", "Operation", "Target", "Before", "After", "Rationale"],
+      modifications.map((modification) => [
+        modification.id, modification.finding_id, modification.operation,
+        modification.target, modification.before, modification.after, modification.rationale,
+      ]),
+    ),
+    "## Coverage",
+    "",
+    table(
+      ["Metric", "Before", "After"],
+      Object.keys(result.before_metrics).map((metric) => [metric, result.before_metrics[metric], result.after_metrics[metric]]),
+    ),
+    "## Remaining gaps",
+    "",
+    open.length === 0 ? "None.\n" : `${open.map((finding) => `- ${finding.id}: ${finding.summary}`).join("\n")}\n`,
+  ].join("\n");
+}
 
 export async function writeReviewPlanArtifacts(store, review) {
   const result = reviewPlan(review);
   if (!result.valid) throw new TypeError(result.errors.join("; "));
-  const artifacts = [];
-  artifacts.push(await store.writeArtifact(
-    "review-plan/improved-plan.json",
-    `${canonicalJson(review.after)}\n`,
-    { type: "review-plan.improved-plan", mediaType: "application/json" },
-  ));
-  artifacts.push(await store.writeArtifact(
-    "review-plan/findings.csv",
-    serializeCsv(["id", "severity", "target", "summary", "status", "unblocker"], review.findings),
-    { type: "review-plan.findings", mediaType: "text/csv" },
-  ));
-  artifacts.push(await store.writeArtifact(
-    "review-plan/modifications.csv",
-    serializeCsv(["id", "finding_id", "operation", "target", "before", "after", "rationale"], review.modifications),
-    { type: "review-plan.modifications", mediaType: "text/csv" },
-  ));
-  artifacts.push(await store.writeArtifact(
-    "review-plan/before-after-metrics.json",
-    `${canonicalJson({ before: result.before_metrics, after: result.after_metrics })}\n`,
-    { type: "review-plan.metrics", mediaType: "application/json" },
-  ));
-  artifacts.push(await store.writeArtifact(
-    "review-plan/checksums.json",
-    `${canonicalJson(result.checksums)}\n`,
-    { type: "review-plan.checksums", mediaType: "application/json" },
-  ));
-  const open = review.findings.filter((finding) => finding.status === "open");
-  artifacts.push(await store.writeArtifact(
-    "review-plan/coverage-gaps.md",
-    `# Remaining Coverage Gaps\n\n${open.length === 0 ? "None.\n" : `${open.map((finding) => `- ${finding.id}: ${finding.summary}`).join("\n")}\n`}`,
-    { type: "review-plan.coverage-gaps", mediaType: "text/markdown" },
-  ));
-  return artifacts;
+  return [
+    await store.writeArtifact(
+      "review-plan/improved-plan.json",
+      `${canonicalJson(review.after)}\n`,
+      { type: "review-plan.improved-plan", mediaType: "application/json" },
+    ),
+    await store.writeArtifact(
+      "review-plan/review.md",
+      reviewMarkdown(review, result),
+      { type: "review-plan.review", mediaType: "text/markdown" },
+    ),
+  ];
 }

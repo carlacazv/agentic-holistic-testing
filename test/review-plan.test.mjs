@@ -15,6 +15,7 @@ async function reviewFixture() {
   const before = structuredClone(after);
   before.requirement_test_links = before.requirement_test_links.filter((link) => link.requirement_id !== "req-status");
   return {
+    mode: "apply",
     before,
     after,
     findings: [{ id: "finding-trace", severity: "high", target: "req-status", summary: "Requirement has no test link", status: "resolved", unblocker: "" }],
@@ -46,7 +47,7 @@ test("review artifacts finalize with checksums", async (t) => {
   const store = new RunStore({ workspace, runId: "run-review-fixture-01" });
   await store.initialize();
   const artifacts = await writeReviewPlanArtifacts(store, await reviewFixture());
-  assert.equal(artifacts.length, REVIEW_PLAN_REQUIRED_ARTIFACTS.length);
+  assert.deepEqual(artifacts.map((artifact) => artifact.path), [...REVIEW_PLAN_REQUIRED_ARTIFACTS]);
   const finalized = await store.finalize({
     skill: "review-plan",
     status: "completed",
@@ -96,4 +97,63 @@ test("dropped test cases require a recorded removal", async () => {
     rationale: "Duplicate of the retained boundary coverage",
   }));
   assert.deepEqual(reviewPlan(review).errors, []);
+});
+
+test("the review mode is declared rather than assumed", async () => {
+  const review = await reviewFixture();
+  delete review.mode;
+  assert.match(reviewPlan(review).errors.join("\n"), /\/mode: expected one of apply, complement/);
+});
+
+test("a complement adds to the plan without touching what is there", async () => {
+  const review = await reviewFixture();
+  review.mode = "complement";
+  review.before = structuredClone(review.after);
+  review.after.test_cases.push({
+    id: "case-complement",
+    title: "Reject a blank age",
+    technique: "equivalence-partitioning",
+    rationale: "Covers the empty input class",
+    boundary_group: "",
+    boundary_role: "",
+    boundary_value: "",
+  });
+  review.after.test_steps.push({ id: "step-complement", test_case_id: "case-complement", sequence: 1, action: "Submit a blank age", expected: "The form reports a required field" });
+  review.after.requirement_test_links.push({ requirement_id: "req-age", test_case_id: "case-complement" });
+  assert.deepEqual(reviewPlan(review).errors, []);
+
+  const removing = structuredClone(review);
+  removing.after.test_cases = removing.after.test_cases.filter((testCase) => testCase.id !== "case-scenario");
+  assert.match(
+    reviewPlan(removing).errors.join("\n"),
+    /\/complement\/test_cases\/case-scenario: a complement must not remove an existing record/,
+  );
+
+  const rewriting = structuredClone(review);
+  rewriting.after.test_cases[0].rationale = "Rewritten during a complement";
+  assert.match(
+    reviewPlan(rewriting).errors.join("\n"),
+    /\/complement\/test_cases\/case-age-below: a complement must not change an existing record/,
+  );
+
+  const unlinking = structuredClone(review);
+  unlinking.after.risk_test_links = unlinking.after.risk_test_links.slice(1);
+  assert.match(
+    reviewPlan(unlinking).errors.join("\n"),
+    /\/complement\/risk_test_links\/\d+: a complement must not remove an existing link/,
+  );
+});
+
+test("the review is one readable document plus the plan", async (t) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "holistic-qa-review-md-"));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  const store = new RunStore({ workspace, runId: "run-review-fixture-02" });
+  await store.initialize();
+  await writeReviewPlanArtifacts(store, await reviewFixture());
+  const document = await readFile(path.join(workspace, "qa/runs/run-review-fixture-02/review-plan/review.md"), "utf8");
+  assert.match(document, /- Mode: apply/);
+  assert.match(document, /\| finding-trace \| high \| req-status \| resolved \|/);
+  assert.match(document, /\| mod-link \| finding-trace \| add \|/);
+  assert.match(document, /\| requirements_test_linked_percent \| 50 \| 100 \|/);
+  assert.match(document, /## Remaining gaps\n\nNone\./);
 });
