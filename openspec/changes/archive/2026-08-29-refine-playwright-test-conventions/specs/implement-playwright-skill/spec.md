@@ -1,16 +1,4 @@
-# implement-playwright-skill Specification
-
-## Purpose
-Converts only explicitly approved Playwright API and browser candidates into maintainable TypeScript tests, fixtures, configuration, CI integration, and repeatable verification evidence.
-
-## Requirements
-
-### Requirement: Approval and permission gate
-The skill SHALL generate code only for strategy rows marked automate and explicitly approved at API or browser E2E, after validating upstream checksums and target-environment permissions.
-
-#### Scenario: Unapproved candidate
-- **WHEN** a recommended candidate lacks explicit approval
-- **THEN** no code is generated for that candidate and the gap is reported
+## MODIFIED Requirements
 
 ### Requirement: Maintainable TypeScript tests
 Generated tests SHALL use TypeScript, isolated deterministic data, descriptive case IDs preserved from the plan, and reusable fixtures where justified. Each spec SHALL express behavior as Given/When describes and Should steps: every describe title SHALL start with `Given ` or `When `, and every assertion SHALL be wrapped in a step whose title starts with `Should `. Arrange SHALL live in the Given scope, the Act SHALL be the single action its When block names, and assertions SHALL appear only inside Should steps. Repeated setup and locator chains SHALL be extracted, and an extracted helper SHALL NOT contain assertions belonging to a single test, branch on its caller, or carry state between tests. Blind sleeps and accepted retries that hide instability SHALL be rejected.
@@ -34,26 +22,7 @@ Browser tests SHALL prefer accessible user-facing locators and web-first asserti
 - **WHEN** a browser spec asserts through locators defined in its declared page or component object
 - **THEN** the accessible-locator requirement is satisfied and the assertions remain in the spec
 
-### Requirement: API implementation quality
-API tests SHALL use Playwright request contexts, validate observable status/body/contracts, isolate state, and avoid browser navigation when equivalent API confidence is sufficient.
-
-#### Scenario: Approved API candidate
-- **WHEN** an API candidate is approved
-- **THEN** implementation uses request-level coverage without unnecessary browser execution
-
-### Requirement: Verification artifacts
-The skill SHALL return approved TypeScript tests, fixtures, configuration, CI integration, locator/testability findings, and verification results including repeated execution and HTML, JUnit, JSON, trace, screenshot, and video configuration.
-
-#### Scenario: Stable repeated run
-- **WHEN** generated tests pass each required repetition with consistent results
-- **THEN** verification records the repetition count and zero accepted flaky outcomes
-
-### Requirement: Honest failure status
-Missing browser capability, test data, permission, or target access SHALL produce `blocked` or `partial`; failed or flaky tests SHALL not be reclassified as completed.
-
-#### Scenario: Flaky outcome
-- **WHEN** a test passes only after retry or fails in any required repetition
-- **THEN** the skill records the failure evidence and does not return `completed`
+## ADDED Requirements
 
 ### Requirement: Deterministic execution
 Generated tests SHALL be deterministic under repeated parallel execution. Fixed waits, network-idle waits, element handles, and assertions on sampled boolean state SHALL be rejected in favor of retrying web-first assertions and waits on a specific element or response. A positional or structural locator SHALL require a `locator` finding, and a skipped or quarantined test SHALL require an `exclusion` finding. Tests SHALL create their own data with a run-scoped key, clean up through the API rather than the interface under test, and SHALL NOT depend on execution order or shared mutable state.
