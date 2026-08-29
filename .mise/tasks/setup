@@ -4,4 +4,5 @@
 
 set -e
 
-echo "Setup complete. Copy dist/codex/.agents/skills/* or dist/claude/.claude/skills/* into your target project."
+echo "Setup complete. Built layouts are under dist/codex and dist/claude."
+echo "To install into another project, run there: npx github:carlacazv/agentic-holistic-testing install <codex|claude>"
