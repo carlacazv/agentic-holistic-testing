@@ -16,6 +16,10 @@
     {
       "id": "implement-playwright",
       "description": "Implement only approved Playwright API and browser candidates as verified TypeScript tests without accepted flakiness."
+    },
+    {
+      "id": "explore",
+      "description": "Run authorized session-based exploratory testing with indexed evidence and reproducible local defect folders."
     }
   ]
 }

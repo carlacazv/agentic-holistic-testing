@@ -2,7 +2,7 @@
 
 Holistic QA is a provider-neutral QA runtime and a set of independently callable Codex skills. The runtime makes QA outputs traceable, checksummed, permission-gated, and explicit about incomplete coverage.
 
-The current construction provides the foundation contract, Codex adapter pipeline, and independently callable plan, review-plan, automation-strategy, and implement-playwright skills. Remaining skills are added incrementally in this order: explore, accessibility, performance, report, and cycle. Claude Code packaging is planned for phase 2 and is not supported by the v1 adapter.
+The current construction provides the foundation contract, Codex adapter pipeline, and independently callable plan, review-plan, automation-strategy, implement-playwright, and explore skills. Remaining skills are added incrementally in this order: accessibility, performance, report, and cycle. Claude Code packaging is planned for phase 2 and is not supported by the v1 adapter.
 
 ## Requirements
 
@@ -57,6 +57,8 @@ Invoke `holistic-qa:review-plan` with a checksum-valid plan run. It preserves th
 Invoke `holistic-qa:automation-strategy` with the reviewed plan. It assesses every case, recommends the lowest effective unit/component/API/browser/manual level, and emits a separate approval-gated list for Playwright API and browser implementation. It never generates code.
 
 Invoke `holistic-qa:implement-playwright` only after approving API/browser candidates. It generates TypeScript using request contexts or accessible browser locators, configures failure evidence and reports, and requires three zero-retry repetitions with no flaky outcome. Application-source changes remain separately approval-gated.
+
+Invoke `holistic-qa:explore` with an authorized charter and timebox. It records session and coverage notes, indexes redacted evidence, and creates one local reproduction folder per confirmed or suspected defect. External defect publication always requires explicit approval.
 
 ## Safety gates
 
