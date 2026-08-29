@@ -2,7 +2,7 @@
 
 Holistic QA is a provider-neutral QA runtime and a set of independently callable Codex skills. The runtime makes QA outputs traceable, checksummed, permission-gated, and explicit about incomplete coverage.
 
-The current construction slice provides the foundation contract and Codex adapter pipeline. Domain skills are added incrementally in this order: plan, review-plan, automation-strategy, implement-playwright, explore, accessibility, performance, report, and cycle. Claude Code packaging is planned for phase 2 and is not supported by the v1 adapter.
+The current construction provides the foundation contract, Codex adapter pipeline, and independently callable `holistic-qa:plan` skill. Remaining skills are added incrementally in this order: review-plan, automation-strategy, implement-playwright, explore, accessibility, performance, report, and cycle. Claude Code packaging is planned for phase 2 and is not supported by the v1 adapter.
 
 ## Requirements
 
@@ -43,6 +43,14 @@ test-results/<run-id>/
 ```
 
 The status is `partial` when valid artifacts exist but declared coverage is incomplete, `blocked` when a recoverable prerequisite prevents useful work, and `failed` for an unrecoverable execution error. `completed` is rejected when a required artifact is missing, partial, tampered with, or accompanied by an unreported gap.
+
+## Plan workflow
+
+Invoke `holistic-qa:plan` with requirements or another authoritative behavior source, accepted scope, known risks, and target environment. The skill scores impact × likelihood, selects test-design techniques from the requirement shape, declares test-data prerequisites, and returns normalized requirements, risks, cases, steps, traceability links, rationale, and metrics under `qa/runs/<run-id>/plan/`.
+
+Every accepted requirement and identified risk must be linked to tests or explicitly disposed as deferred, waived, externally covered, or not testable with rationale. Completion therefore means 100% accounted scope, not that every item was necessarily selected for execution.
+
+Build the Codex installation layout with `npm run build:codex`. The generated skill is under `dist/codex/.agents/skills/holistic-qa-plan/` and its manifest records the provider-neutral source checksum.
 
 ## Safety gates
 

@@ -1,4 +1,9 @@
 {
   "schema_version": 1,
-  "skills": []
+  "skills": [
+    {
+      "id": "plan",
+      "description": "Create a risk-prioritized, technique-driven test plan with complete requirement and risk traceability."
+    }
+  ]
 }

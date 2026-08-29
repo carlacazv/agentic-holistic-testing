@@ -9,3 +9,4 @@ export * from "./core/permissions.mjs";
 export * from "./core/redaction.mjs";
 export * from "./core/run-store.mjs";
 export * from "./core/validation.mjs";
+export * from "./stages/plan.mjs";
