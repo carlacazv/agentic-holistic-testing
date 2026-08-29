@@ -16,7 +16,7 @@ test("Codex adapter builds in a clean temporary home", async (t) => {
   const skill = await readFile(path.join(directory, ".agents/skills/holistic-qa-plan/SKILL.md"), "utf8");
   assert.match(skill, /name: holistic-qa:plan/);
   assert.match(skill, new RegExp(generated.get("plan").source_checksum.replace(":", "\\:")));
-  const written = JSON.parse(await readFile(path.join(directory, ".holistic-qa-manifest.json"), "utf8"));
+  const written = JSON.parse(await readFile(path.join(directory, ".agents/.holistic-qa-manifest.json"), "utf8"));
   assert.deepEqual(written, result);
 });
 
@@ -31,8 +31,19 @@ test("Claude Code adapter builds in a clean temporary home", async (t) => {
   const skill = await readFile(path.join(directory, ".claude/skills/holistic-qa-plan/SKILL.md"), "utf8");
   assert.match(skill, /name: holistic-qa-plan/);
   assert.match(skill, new RegExp(generated.get("plan").source_checksum.replace(":", "\\:")));
-  const written = JSON.parse(await readFile(path.join(directory, ".holistic-qa-manifest.json"), "utf8"));
+  const written = JSON.parse(await readFile(path.join(directory, ".claude/.holistic-qa-manifest.json"), "utf8"));
   assert.deepEqual(written, result);
+});
+
+test("installing both providers into the same target does not collide", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "holistic-qa-adapter-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const codex = await buildAdapter("codex", directory);
+  const claude = await buildAdapter("claude", directory);
+  const codexManifest = JSON.parse(await readFile(path.join(directory, ".agents/.holistic-qa-manifest.json"), "utf8"));
+  const claudeManifest = JSON.parse(await readFile(path.join(directory, ".claude/.holistic-qa-manifest.json"), "utf8"));
+  assert.deepEqual(codexManifest, codex);
+  assert.deepEqual(claudeManifest, claude);
 });
 
 test("an unknown provider is rejected", async (t) => {

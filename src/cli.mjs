@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { buildAdapter } from "../scripts/build-adapter.mjs";
 import { canonicalJson } from "./core/canonical.mjs";
 import { validateArtifactFiles, validateRunDirectory } from "./core/artifacts.mjs";
 import { resolveBrowserCapability } from "./core/browser.mjs";
@@ -19,6 +20,7 @@ function output(value) {
 function usage() {
   return {
     commands: [
+      "install <codex|claude> [--target <directory>]",
       "validate <schema-name-or-id> <document.json>",
       "validate-artifacts <run-directory> <artifact-index.json>",
       "validate-run <run-directory>",
@@ -32,6 +34,20 @@ function usage() {
 async function main([command, ...args]) {
   if (!command || command === "help" || command === "--help") {
     output(usage());
+    return 0;
+  }
+  if (command === "install" && args.length >= 1) {
+    const [provider, ...rest] = args;
+    let target = process.cwd();
+    if (rest.length === 2 && rest[0] === "--target") {
+      target = rest[1];
+    } else if (rest.length !== 0) {
+      output({ error: "invalid_arguments", usage: usage() });
+      return 64;
+    }
+    const resolvedTarget = path.resolve(target);
+    const result = await buildAdapter(provider, resolvedTarget);
+    output({ installed_to: resolvedTarget, ...result });
     return 0;
   }
   if (command === "validate" && args.length === 2) {

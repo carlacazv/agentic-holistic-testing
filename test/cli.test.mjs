@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -49,4 +49,17 @@ test("CLI returns distinct denial and argument exit codes", async (t) => {
   assert.equal(run("permission", contextFile, capabilityFile).status, 2);
   assert.equal(run("not-a-command").status, 64);
   assert.equal(run("run-id", "../unsafe").status, 1);
+});
+
+test("CLI installs a provider layout directly into a target directory", async (t) => {
+  const directory = await fixtureDirectory(t);
+  const result = run("install", "claude", "--target", directory);
+  assert.equal(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.installed_to, directory);
+  assert.equal(output.provider, "claude");
+  const skill = await readFile(path.join(directory, ".claude/skills/holistic-qa-plan/SKILL.md"), "utf8");
+  assert.match(skill, /name: holistic-qa-plan/);
+  assert.equal(run("install", "gemini", "--target", directory).status, 1);
+  assert.equal(run("install", "codex", "--target", directory, "extra").status, 64);
 });

@@ -31,14 +31,15 @@ async function loadManifest() {
   return manifest;
 }
 
-async function buildLayout(outputRoot, { provider, skillsDirectory, frontmatterName }) {
+async function buildLayout(outputRoot, { provider, providerRoot, frontmatterName }) {
   const sourceManifest = await loadManifest();
+  const providerDirectory = path.join(outputRoot, providerRoot);
   const generated = [];
   for (const skill of sourceManifest.skills) {
     const sourcePath = path.join(root, "skills", "holistic-qa", skill.id, "instructions.md");
     const body = normalizeBody(await readFile(sourcePath, "utf8"));
     const bodyChecksum = checksum(body);
-    const directory = path.join(outputRoot, ...skillsDirectory, `holistic-qa-${skill.id}`);
+    const directory = path.join(providerDirectory, "skills", `holistic-qa-${skill.id}`);
     await mkdir(directory, { recursive: true });
     const document = [
       "---",
@@ -59,9 +60,11 @@ async function buildLayout(outputRoot, { provider, skillsDirectory, frontmatterN
     provider,
     skills: generated.sort((left, right) => left.id.localeCompare(right.id)),
   };
-  await mkdir(outputRoot, { recursive: true });
+  // Nested under providerRoot (not outputRoot) so installing both providers into one
+  // target directory - e.g. a consuming project's own repo root - never collides.
+  await mkdir(providerDirectory, { recursive: true });
   await writeFile(
-    path.join(outputRoot, ".holistic-qa-manifest.json"),
+    path.join(providerDirectory, ".holistic-qa-manifest.json"),
     `${canonicalJson(adapterManifest)}\n`,
     "utf8",
   );
@@ -71,7 +74,7 @@ async function buildLayout(outputRoot, { provider, skillsDirectory, frontmatterN
 async function buildCodex(outputRoot) {
   return buildLayout(outputRoot, {
     provider: "codex",
-    skillsDirectory: [".agents", "skills"],
+    providerRoot: ".agents",
     frontmatterName: (id) => `holistic-qa:${id}`,
   });
 }
@@ -79,7 +82,7 @@ async function buildCodex(outputRoot) {
 async function buildClaude(outputRoot) {
   return buildLayout(outputRoot, {
     provider: "claude",
-    skillsDirectory: [".claude", "skills"],
+    providerRoot: ".claude",
     frontmatterName: (id) => `holistic-qa-${id}`,
   });
 }
