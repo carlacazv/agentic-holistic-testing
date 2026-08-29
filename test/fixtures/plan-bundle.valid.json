@@ -1,0 +1,53 @@
+{
+  "requirements": [
+    { "id": "req-age", "source_id": "AC-1", "title": "Age must be at least 18", "acceptance_criteria": "Accept 18 and above", "disposition": "", "disposition_rationale": "" },
+    { "id": "req-status", "source_id": "AC-2", "title": "Account follows lifecycle rules", "acceptance_criteria": "Pending can become active", "disposition": "", "disposition_rationale": "" }
+  ],
+  "risks": [
+    { "id": "risk-minor", "title": "Minor is accepted", "impact": 5, "likelihood": 4, "exposure": 20, "priority": "P0", "disposition": "", "disposition_rationale": "" },
+    { "id": "risk-state", "title": "Invalid transition corrupts state", "impact": 3, "likelihood": 4, "exposure": 12, "priority": "P1", "disposition": "", "disposition_rationale": "" }
+  ],
+  "test_cases": [
+    { "id": "case-age-below", "title": "Reject 17", "technique": "boundary-value-analysis", "rationale": "Immediately below the minimum", "boundary_group": "minimum-age", "boundary_role": "below", "boundary_value": "17" },
+    { "id": "case-age-at", "title": "Accept 18", "technique": "boundary-value-analysis", "rationale": "Exactly at the minimum", "boundary_group": "minimum-age", "boundary_role": "at", "boundary_value": "18" },
+    { "id": "case-age-above", "title": "Accept 19", "technique": "boundary-value-analysis", "rationale": "Immediately above the minimum", "boundary_group": "minimum-age", "boundary_role": "above", "boundary_value": "19" },
+    { "id": "case-decision", "title": "Apply age and consent decision rules", "technique": "decision-table", "rationale": "Outcome depends on age and consent", "boundary_group": "", "boundary_role": "", "boundary_value": "" },
+    { "id": "case-state", "title": "Reject active to pending", "technique": "state-transition", "rationale": "Covers a prohibited lifecycle transition", "boundary_group": "", "boundary_role": "", "boundary_value": "" },
+    { "id": "case-equivalence", "title": "Reject nonnumeric age", "technique": "equivalence-partitioning", "rationale": "Covers the invalid input class", "boundary_group": "", "boundary_role": "", "boundary_value": "" },
+    { "id": "case-scenario", "title": "Activate an eligible pending account", "technique": "scenario-testing", "rationale": "Covers the accepted end-to-end lifecycle journey", "boundary_group": "", "boundary_role": "", "boundary_value": "" },
+    { "id": "case-pairwise", "title": "Cover browser and locale pairs", "technique": "pairwise-selection", "rationale": "Independent configuration factors", "boundary_group": "", "boundary_role": "", "boundary_value": "" },
+    { "id": "case-error", "title": "Recover from duplicate submission", "technique": "error-guessing", "rationale": "Duplicate requests are a known distributed-system failure", "boundary_group": "", "boundary_role": "", "boundary_value": "" }
+  ],
+  "test_steps": [
+    { "id": "step-1", "test_case_id": "case-age-below", "sequence": 1, "action": "Submit age 17", "expected": "Validation rejects submission" },
+    { "id": "step-2", "test_case_id": "case-age-at", "sequence": 1, "action": "Submit age 18", "expected": "Submission is accepted" },
+    { "id": "step-3", "test_case_id": "case-age-above", "sequence": 1, "action": "Submit age 19", "expected": "Submission is accepted" },
+    { "id": "step-4", "test_case_id": "case-decision", "sequence": 1, "action": "Evaluate each rule", "expected": "Decision table outcome matches" },
+    { "id": "step-5", "test_case_id": "case-state", "sequence": 1, "action": "Request active to pending", "expected": "Transition is rejected" },
+    { "id": "step-8", "test_case_id": "case-equivalence", "sequence": 1, "action": "Submit a nonnumeric age", "expected": "Validation rejects submission" },
+    { "id": "step-9", "test_case_id": "case-scenario", "sequence": 1, "action": "Complete the eligible activation journey", "expected": "Pending account becomes active" },
+    { "id": "step-6", "test_case_id": "case-pairwise", "sequence": 1, "action": "Run selected pairs", "expected": "Each pair behaves consistently" },
+    { "id": "step-7", "test_case_id": "case-error", "sequence": 1, "action": "Repeat the request", "expected": "Only one record is created" }
+  ],
+  "requirement_test_links": [
+    { "requirement_id": "req-age", "test_case_id": "case-age-below" },
+    { "requirement_id": "req-age", "test_case_id": "case-age-at" },
+    { "requirement_id": "req-age", "test_case_id": "case-age-above" },
+    { "requirement_id": "req-age", "test_case_id": "case-decision" },
+    { "requirement_id": "req-age", "test_case_id": "case-equivalence" },
+    { "requirement_id": "req-status", "test_case_id": "case-state" },
+    { "requirement_id": "req-status", "test_case_id": "case-scenario" },
+    { "requirement_id": "req-status", "test_case_id": "case-pairwise" },
+    { "requirement_id": "req-status", "test_case_id": "case-error" }
+  ],
+  "risk_test_links": [
+    { "risk_id": "risk-minor", "test_case_id": "case-age-below" },
+    { "risk_id": "risk-minor", "test_case_id": "case-decision" },
+    { "risk_id": "risk-state", "test_case_id": "case-state" }
+  ],
+  "test_data_prerequisites": ["A pending account", "An active account", "Supported browser and locale matrix"],
+  "heuristics": [
+    { "name": "SFDIPOT", "selected": true, "rationale": "Structure, functions, data, interfaces, platform, operations, and time shape the scope." },
+    { "name": "FEW HICCUPPS", "selected": true, "rationale": "Claims will be compared with product, purpose, history, image, comparable products, user expectations, requirements, and statutes." }
+  ]
+}

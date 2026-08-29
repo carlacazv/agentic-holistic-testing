@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:playwright-implementation",
+  "title": "Holistic QA Playwright implementation",
+  "type": "object",
+  "required": ["candidates", "files", "configuration", "ci_integration", "findings", "verification_results"]
+}

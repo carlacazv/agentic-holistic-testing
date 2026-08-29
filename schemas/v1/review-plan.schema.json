@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:review-plan",
+  "title": "Holistic QA plan review",
+  "type": "object",
+  "required": ["before", "after", "findings", "modifications"],
+  "properties": {
+    "before": { "type": "object" },
+    "after": { "type": "object" },
+    "findings": { "type": "array" },
+    "modifications": { "type": "array" }
+  }
+}

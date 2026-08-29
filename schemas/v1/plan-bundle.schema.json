@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:plan-bundle",
+  "title": "Holistic QA plan bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requirements", "risks", "test_cases", "test_steps", "requirement_test_links", "risk_test_links", "test_data_prerequisites", "heuristics"],
+  "properties": {
+    "requirements": { "type": "array", "items": { "type": "object", "required": ["id", "title", "acceptance_criteria"] } },
+    "risks": { "type": "array", "items": { "type": "object", "required": ["id", "title", "impact", "likelihood", "exposure", "priority"] } },
+    "test_cases": { "type": "array", "items": { "type": "object", "required": ["id", "title", "technique", "rationale"] } },
+    "test_steps": { "type": "array", "items": { "type": "object", "required": ["id", "test_case_id", "sequence", "action", "expected"] } },
+    "requirement_test_links": { "type": "array" },
+    "risk_test_links": { "type": "array" },
+    "test_data_prerequisites": { "type": "array", "items": { "type": "string" } },
+    "heuristics": { "type": "array" }
+  }
+}

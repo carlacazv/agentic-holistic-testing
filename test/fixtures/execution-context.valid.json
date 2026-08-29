@@ -1,0 +1,13 @@
+{
+  "environment": "test",
+  "mode": "autonomous",
+  "production_authorized": false,
+  "allowed_capabilities": ["read-page"],
+  "approvals": [],
+  "credentials": [
+    {
+      "provider": "environment",
+      "key": "QA_USER"
+    }
+  ]
+}

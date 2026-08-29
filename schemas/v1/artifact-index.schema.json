@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:artifact-index",
+  "title": "Holistic QA artifact index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "artifacts"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run_id": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{5,63}$" },
+    "artifacts": { "type": "array", "items": { "$ref": "urn:holistic-qa:schema:v1:artifact-entry" } }
+  }
+}

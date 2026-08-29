@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "skills": [
+    {
+      "id": "plan",
+      "description": "Create a risk-prioritized, technique-driven test plan with complete requirement and risk traceability."
+    },
+    {
+      "id": "review-plan",
+      "description": "Review and improve a plan with exact findings, modifications, checksums, and before/after coverage metrics."
+    },
+    {
+      "id": "automation-strategy",
+      "description": "Choose the lowest effective automation level and produce approval-gated Playwright API and browser candidates."
+    },
+    {
+      "id": "implement-playwright",
+      "description": "Implement only approved Playwright API and browser candidates as verified TypeScript tests without accepted flakiness."
+    },
+    {
+      "id": "explore",
+      "description": "Run authorized session-based exploratory testing with indexed evidence and reproducible local defect folders."
+    }
+  ]
+}

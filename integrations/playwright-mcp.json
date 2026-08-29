@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "package": "@playwright/mcp",
+  "version": "0.0.79",
+  "optional": true,
+  "fallback_order": ["provider-browser-tool", "playwright-cli"]
+}
