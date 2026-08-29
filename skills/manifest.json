@@ -4,6 +4,10 @@
     {
       "id": "plan",
       "description": "Create a risk-prioritized, technique-driven test plan with complete requirement and risk traceability."
+    },
+    {
+      "id": "review-plan",
+      "description": "Review and improve a plan with exact findings, modifications, checksums, and before/after coverage metrics."
     }
   ]
 }

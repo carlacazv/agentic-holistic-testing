@@ -2,7 +2,7 @@
 
 Holistic QA is a provider-neutral QA runtime and a set of independently callable Codex skills. The runtime makes QA outputs traceable, checksummed, permission-gated, and explicit about incomplete coverage.
 
-The current construction provides the foundation contract, Codex adapter pipeline, and independently callable `holistic-qa:plan` skill. Remaining skills are added incrementally in this order: review-plan, automation-strategy, implement-playwright, explore, accessibility, performance, report, and cycle. Claude Code packaging is planned for phase 2 and is not supported by the v1 adapter.
+The current construction provides the foundation contract, Codex adapter pipeline, and independently callable `holistic-qa:plan` and `holistic-qa:review-plan` skills. Remaining skills are added incrementally in this order: automation-strategy, implement-playwright, explore, accessibility, performance, report, and cycle. Claude Code packaging is planned for phase 2 and is not supported by the v1 adapter.
 
 ## Requirements
 
@@ -51,6 +51,8 @@ Invoke `holistic-qa:plan` with requirements or another authoritative behavior so
 Every accepted requirement and identified risk must be linked to tests or explicitly disposed as deferred, waived, externally covered, or not testable with rationale. Completion therefore means 100% accounted scope, not that every item was necessarily selected for execution.
 
 Build the Codex installation layout with `npm run build:codex`. The generated skill is under `dist/codex/.agents/skills/holistic-qa-plan/` and its manifest records the provider-neutral source checksum.
+
+Invoke `holistic-qa:review-plan` with a checksum-valid plan run. It preserves the original, validates the improved bundle, and returns exact findings and modifications with before/after metrics. A resolved finding without a linked modification or a metric regression is rejected.
 
 ## Safety gates
 
