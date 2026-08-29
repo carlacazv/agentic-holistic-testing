@@ -20,6 +20,10 @@
     {
       "id": "explore",
       "description": "Run authorized session-based exploratory testing with indexed evidence and reproducible local defect folders."
+    },
+    {
+      "id": "accessibility",
+      "description": "Audit WCAG 2.2 AA scope with automated axe results, manual evidence, unresolved criteria, and linked defects."
     }
   ]
 }
