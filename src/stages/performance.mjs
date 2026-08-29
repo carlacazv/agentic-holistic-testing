@@ -1,6 +1,11 @@
 import { canonicalJson } from "../core/canonical.mjs";
 import { serializeCsv } from "../core/csv.mjs";
 
+export const BUDGET_SOURCES = Object.freeze(["lighthouse", "api"]);
+export const BUDGET_DIRECTIONS = Object.freeze(["max", "min"]);
+export const BUDGET_STATISTICS = Object.freeze(["min", "median", "p95", "max"]);
+export const MINIMUM_RUNS_PER_PAGE = 3;
+
 export function distribution(values) {
   if (!Array.isArray(values) || values.length < 3 || values.some((value) => !Number.isFinite(value) || value < 0)) {
     throw new TypeError("A timing distribution requires at least three non-negative finite samples");
@@ -30,11 +35,30 @@ function actualForBudget(audit, budget) {
   return distribution(values)[budget.statistic];
 }
 
+function satisfiesBudget(actual, budget) {
+  if (actual === undefined || !Number.isFinite(budget.threshold)) return false;
+  if (budget.direction === "max") return actual <= budget.threshold;
+  if (budget.direction === "min") return actual >= budget.threshold;
+  return false;
+}
+
+export function validateBudget(budget, at) {
+  const errors = [];
+  if (typeof budget?.id !== "string" || budget.id.length === 0) errors.push(`/budgets/${at}/id: required`);
+  if (!BUDGET_SOURCES.includes(budget?.source)) errors.push(`/budgets/${at}/source: expected one of ${BUDGET_SOURCES.join(", ")}`);
+  if (typeof budget?.target !== "string" || budget.target.length === 0) errors.push(`/budgets/${at}/target: required`);
+  if (typeof budget?.metric !== "string" || budget.metric.length === 0) errors.push(`/budgets/${at}/metric: required`);
+  if (!BUDGET_STATISTICS.includes(budget?.statistic)) errors.push(`/budgets/${at}/statistic: expected one of ${BUDGET_STATISTICS.join(", ")}`);
+  if (!BUDGET_DIRECTIONS.includes(budget?.direction)) errors.push(`/budgets/${at}/direction: expected one of ${BUDGET_DIRECTIONS.join(", ")}`);
+  if (!Number.isFinite(budget?.threshold)) errors.push(`/budgets/${at}/threshold: expected a finite number`);
+  if (typeof budget?.unit !== "string" || budget.unit.length === 0) errors.push(`/budgets/${at}/unit: required`);
+  return errors;
+}
+
 export function evaluateBudgets(audit) {
   return (audit.budgets ?? []).map((budget) => {
     const actual = actualForBudget(audit, budget);
-    const passed = actual === undefined ? false : budget.direction === "max" ? actual <= budget.threshold : actual >= budget.threshold;
-    return { ...budget, actual, passed };
+    return { ...budget, actual, passed: satisfiesBudget(actual, budget) };
   });
 }
 
@@ -42,9 +66,14 @@ export function validatePerformanceAudit(audit) {
   const errors = [];
   if (!["budget", "baseline"].includes(audit?.mode)) errors.push("/mode: expected budget or baseline");
   if (!Array.isArray(audit?.scope?.pages) || !Array.isArray(audit?.scope?.endpoints)) errors.push("/scope: pages and endpoints required");
-  if ((audit?.lighthouse_runs?.length ?? 0) < 3) errors.push("/lighthouse_runs: at least three comparable runs required");
-  const lighthousePages = new Set((audit?.lighthouse_runs ?? []).map((entry) => entry.page));
-  for (const page of audit?.scope?.pages ?? []) if (!lighthousePages.has(page)) errors.push(`/lighthouse_runs: missing page ${page}`);
+  if ((audit?.lighthouse_runs?.length ?? 0) < MINIMUM_RUNS_PER_PAGE) errors.push("/lighthouse_runs: at least three comparable runs required");
+  const runsByPage = new Map();
+  for (const entry of audit?.lighthouse_runs ?? []) runsByPage.set(entry.page, (runsByPage.get(entry.page) ?? 0) + 1);
+  for (const page of audit?.scope?.pages ?? []) {
+    const runs = runsByPage.get(page) ?? 0;
+    if (runs === 0) errors.push(`/lighthouse_runs: missing page ${page}`);
+    else if (runs < MINIMUM_RUNS_PER_PAGE) errors.push(`/lighthouse_runs: page ${page} requires at least three comparable runs`);
+  }
   for (const timing of audit?.api_timings ?? []) {
     try { distribution(timing.samples_ms); } catch (error) { errors.push(`/api_timings/${timing.endpoint}: ${error.message}`); }
     if (!Array.isArray(timing.errors)) errors.push(`/api_timings/${timing.endpoint}/errors: required`);
@@ -53,6 +82,9 @@ export function validatePerformanceAudit(audit) {
   for (const endpoint of audit?.scope?.endpoints ?? []) if (!timingEndpoints.has(endpoint)) errors.push(`/api_timings: missing endpoint ${endpoint}`);
   if (typeof audit?.variability_notes !== "string" || audit.variability_notes.length === 0) errors.push("/variability_notes: required");
   if (audit?.mode === "budget" && (audit.budgets?.length ?? 0) === 0) errors.push("/budgets: budget mode requires thresholds");
+  for (const [index, budget] of (audit?.budgets ?? []).entries()) {
+    errors.push(...validateBudget(budget, typeof budget?.id === "string" && budget.id.length > 0 ? budget.id : index));
+  }
   if (audit?.mode === "baseline" && (audit.budgets?.length ?? 0) > 0) errors.push("/budgets: baseline mode must not invent thresholds");
 
   const defectIds = new Set((audit?.defects ?? []).map((defect) => defect.id));

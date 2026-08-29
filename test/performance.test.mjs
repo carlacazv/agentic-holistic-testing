@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { RunStore } from "../src/core/run-store.mjs";
-import { distribution, performanceRequiredArtifacts, validatePerformanceAudit, writePerformanceAudit } from "../src/stages/performance.mjs";
+import { distribution, evaluateBudgets, performanceRequiredArtifacts, validatePerformanceAudit, writePerformanceAudit } from "../src/stages/performance.mjs";
 
 function fixture(mode = "baseline") {
   return {
@@ -46,4 +46,32 @@ test("baseline artifacts preserve uncertainty and finalize", async (t) => {
   assert.equal((await writePerformanceAudit(store, audit)).length, 7);
   const result = await store.finalize({ skill: "performance", status: "completed", requiredArtifacts: performanceRequiredArtifacts(audit), residualRisks: ["No SLA was supplied"] });
   assert.equal(result.envelope.status, "completed");
+});
+
+test("an unrecognized budget direction is rejected and never passes", () => {
+  const audit = fixture("budget");
+  audit.budgets[0].direction = "maximum";
+  audit.lighthouse_runs = audit.lighthouse_runs.map((run) => ({ ...run, metrics: { ...run.metrics, lcp_ms: 9000 } }));
+  assert.equal(evaluateBudgets(audit)[0].passed, false);
+  const errors = validatePerformanceAudit(audit).errors.join("\n");
+  assert.match(errors, /\/budgets\/budget-lcp\/direction: expected one of max, min/);
+});
+
+test("budget fields are declared before a threshold is compared", () => {
+  const audit = fixture("budget");
+  audit.budgets[0] = { ...audit.budgets[0], source: "lighthouse-api", metric: "", statistic: "samples", threshold: "1150", unit: "" };
+  const errors = validatePerformanceAudit(audit).errors.join("\n");
+  for (const field of ["source", "metric", "statistic", "threshold", "unit"]) {
+    assert.match(errors, new RegExp(`/budgets/budget-lcp/${field}:`));
+  }
+});
+
+test("repeated runs are required for every declared page", () => {
+  const audit = fixture();
+  audit.scope.pages = ["/", "/second"];
+  audit.lighthouse_runs = [...audit.lighthouse_runs, { page: "/second", metrics: { performance_score: 1, lcp_ms: 900, cls: 0, tbt_ms: 0 } }];
+  assert.match(
+    validatePerformanceAudit(audit).errors.join("\n"),
+    /\/lighthouse_runs: page \/second requires at least three comparable runs/,
+  );
 });
