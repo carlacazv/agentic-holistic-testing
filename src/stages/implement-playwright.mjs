@@ -9,7 +9,8 @@ const elementHandle = /elementHandle\s*\(/;
 const sampledAssertion = /expect\s*\(\s*await\s[^;]*?\.(?:isVisible|isHidden|isEnabled|isDisabled|isChecked|isEditable)\s*\(/;
 const positionalLocator = /\.(?:first|last|nth)\s*\(/;
 const structuralLocator = /\.locator\s*\(/;
-const testExclusion = /test\.(?:skip|fixme)\s*\(/;
+const testExclusion = /\btest\s*(?:\.\w+)*\.(?:skip|fixme)\s*\(/;
+const focusedTest = /\btest\s*(?:\.\w+)*\.only\s*\(/;
 const describeTitles = /test\.describe\s*\(\s*(['"`])([^'"`]*)\1/g;
 const stepTitles = /test\.step\s*\(\s*(['"`])([^'"`]*)\1/g;
 
@@ -43,7 +44,13 @@ export function validatePlaywrightImplementation(manifest) {
     (candidate) => candidate.recommended_level === "browser-e2e",
   );
 
+  if (!Array.isArray(manifest.candidates) || manifest.candidates.length === 0) {
+    errors.push("/candidates: at least one approved candidate is required");
+  }
+
   const files = manifest.files ?? [];
+  const specFiles = files.filter((file) => (file.kind ?? "spec") === "spec");
+  if (specFiles.length === 0) errors.push("/files: at least one spec file is required");
   const objectFiles = files.filter((file) => OBJECT_KINDS.includes(file.kind));
   const declaredObjectKinds = new Set(objectFiles.map((file) => file.kind));
   const objectSource = objectFiles.map((file) => file.source ?? "").join("\n");
@@ -81,6 +88,9 @@ export function validatePlaywrightImplementation(manifest) {
     }
     if (testExclusion.test(file.source) && !hasFinding(manifest, "exclusion", file.path)) {
       errors.push(`/files/${file.path}: skipped test requires an exclusion finding`);
+    }
+    if (focusedTest.test(file.source)) {
+      errors.push(`/files/${file.path}: focused tests are prohibited; a focused run drops every other test`);
     }
 
     if (OBJECT_KINDS.includes(kind)) {
@@ -155,6 +165,11 @@ export function validatePlaywrightImplementation(manifest) {
   if (!Number.isInteger(verification.repetitions) || verification.repetitions < 3) errors.push("/verification_results/repetitions: expected at least 3");
   if (verification.retries !== 0) errors.push("/verification_results/retries: expected 0");
   if (verification.failed !== 0 || verification.flaky !== 0) errors.push("/verification_results: failures or flaky outcomes are not accepted");
+  if (!Number.isInteger(verification.tests) || verification.tests < 1) {
+    errors.push("/verification_results/tests: expected a positive integer");
+  } else if (verification.tests < specFiles.length) {
+    errors.push("/verification_results/tests: fewer executed tests than declared spec files");
+  }
   if (verification.passed !== verification.tests * verification.repetitions) errors.push("/verification_results/passed: inconsistent total");
   return { valid: errors.length === 0, errors };
 }

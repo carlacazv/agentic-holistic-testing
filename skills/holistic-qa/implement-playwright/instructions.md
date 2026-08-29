@@ -84,7 +84,8 @@ Required for isolation and determinism:
 - Pin timezone and locale in the configuration. Inject or freeze dates rather than asserting against the machine clock.
 - Stub or await the exact network calls the assertion depends on; never rely on request ordering or on incidental timing.
 - Do not assert on animation-dependent intermediate states; assert the settled outcome.
-- Never mark a test skipped, quarantined, or retried to get a green run. Any exclusion requires a recorded finding with rationale and an unblocker.
+- Never mark a test skipped, quarantined, or retried to get a green run. Any exclusion requires a recorded finding with rationale and an unblocker, at test or suite level (`test.skip`, `test.fixme`, `test.describe.skip`).
+- `test.only` and `test.describe.only` are rejected outright: a focused run drops every other test while the repetition evidence still reads green.
 
 ## Configuration and verification
 
@@ -96,6 +97,6 @@ Execute the approved suite at least three times with zero retries. Any failed re
 
 Return the approved TypeScript tests, fixtures, Playwright configuration, CI integration, locator/testability findings, and verification results in `implement-playwright/implementation-manifest.json`, `implement-playwright/testability-findings.csv`, and `implement-playwright/verification-results.json`, plus foundation control files.
 
-Each manifest file entry declares its `kind` (`spec`, `page-object`, or `component-object`; `spec` when omitted). Every spec covering a browser candidate also declares `ui_abstraction` and, when that value is `inline`, a `ui_abstraction_rationale`. `validatePlaywrightImplementation` enforces the structure, flake, and abstraction rules above and rejects the implementation before any artifact is written, so a deviation that is genuinely correct must be justified through a finding rather than by loosening the code: category `locator` covers a structural or positional selector, and category `exclusion` covers a skipped test.
+Each manifest file entry declares its `kind` (`spec`, `page-object`, or `component-object`; `spec` when omitted). Every spec covering a browser candidate also declares `ui_abstraction` and, when that value is `inline`, a `ui_abstraction_rationale`. The manifest declares at least one approved candidate, at least one spec, and a `verification_results.tests` count that is a positive integer covering every declared spec, so an empty or under-executed run cannot reach `completed`. `validatePlaywrightImplementation` enforces the structure, flake, and abstraction rules above and rejects the implementation before any artifact is written, so a deviation that is genuinely correct must be justified through a finding rather than by loosening the code: category `locator` covers a structural or positional selector, and category `exclusion` covers a skipped test.
 
 Return `blocked` for missing approval, environment, browser, credentials, or test data when no useful implementation can proceed. Return `partial` when a valid subset is implemented and every excluded candidate is explicit.

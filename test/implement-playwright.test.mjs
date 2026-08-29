@@ -179,3 +179,52 @@ test("implementation evidence finalizes", async (t) => {
   const result = await store.finalize({ skill: "implement-playwright", status: "completed", requiredArtifacts: PLAYWRIGHT_REQUIRED_ARTIFACTS });
   assert.equal(result.envelope.status, "completed");
 });
+
+test("an empty implementation cannot claim completion", () => {
+  const errors = validatePlaywrightImplementation({
+    candidates: [],
+    files: [],
+    configuration: { reporters: ["html", "json", "junit"], artifacts: ["trace", "screenshot", "video"] },
+    ci_integration: { command: "npx playwright test" },
+    verification_results: { tests: 0, repetitions: 3, retries: 0, passed: 0, failed: 0, flaky: 0 },
+  }).errors.join("\n");
+  assert.match(errors, /\/candidates: at least one approved candidate is required/);
+  assert.match(errors, /\/files: at least one spec file is required/);
+  assert.match(errors, /\/verification_results\/tests: expected a positive integer/);
+});
+
+test("suite-level exclusions and focused tests are rejected", async () => {
+  const cases = [
+    ['test.describe.skip("When loading", () => {});', /skipped test requires an exclusion finding/],
+    ['test.describe.fixme("When loading", () => {});', /skipped test requires an exclusion finding/],
+    ['test.only("case-browser", async () => {});', /focused tests are prohibited/],
+    ['test.describe.only("Given a list", () => {});', /focused tests are prohibited/],
+  ];
+  for (const [snippet, expected] of cases) {
+    const manifest = await implementationFixture();
+    const file = browserFile(manifest);
+    file.source = `${file.source}\n${snippet}\n`;
+    assert.match(validatePlaywrightImplementation(manifest).errors.join("\n"), expected);
+  }
+
+  const excluded = await implementationFixture();
+  const file = browserFile(excluded);
+  file.source = `${file.source}\ntest.describe.skip("When the feed is offline", () => {});\n`;
+  excluded.findings = [{
+    id: "finding-002",
+    category: "exclusion",
+    target: "tests/browser.spec.ts",
+    summary: "Offline feed suite is blocked on a missing stub",
+    source_change_approved: false,
+  }];
+  assert.deepEqual(validatePlaywrightImplementation(excluded).errors, []);
+});
+
+test("reported test counts must cover every declared spec", async () => {
+  const manifest = await implementationFixture();
+  manifest.verification_results = { tests: 1, repetitions: 3, retries: 0, passed: 3, failed: 0, flaky: 0 };
+  assert.match(
+    validatePlaywrightImplementation(manifest).errors.join("\n"),
+    /\/verification_results\/tests: fewer executed tests than declared spec files/,
+  );
+});
