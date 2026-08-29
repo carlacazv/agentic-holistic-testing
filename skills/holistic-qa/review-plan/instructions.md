@@ -4,7 +4,7 @@ Independently review an existing `holistic-qa:plan` bundle and produce a measura
 
 ## Inputs and integrity gate
 
-Require the upstream run ID, plan artifacts, artifact index, and return envelope. Validate every checksum before analysis. Return `blocked` if the bundle is absent, unreadable, or tampered with; never review an untrusted copy.
+Require the upstream run ID, plan artifacts, artifact index, and return envelope. Validate every checksum before analysis. Return `blocked` if the bundle is absent, unreadable, or tampered with; never review an untrusted copy. A bundle whose collections are not readable as records is unusable input and stops the review before any metric is computed.
 
 ## Review dimensions
 
@@ -12,7 +12,7 @@ Assess requirement and risk traceability, impact × likelihood scoring, priority
 
 Record each finding with stable ID, severity, target record, evidence, status, and unblocker when open. Do not silently fix a finding: every change must record operation, target, before value, after value, rationale, and linked finding ID.
 
-Validate the improved plan using the upstream plan contract. Calculate before/after metrics and canonical bundle checksums. Reject metric regression and do not claim improvement for cosmetic edits.
+Validate the improved plan using the upstream plan contract. Calculate before/after metrics and canonical bundle checksums. Reject metric regression and do not claim improvement for cosmetic edits. Coverage that leaves the plan is a change like any other: every test case or step present before the review and absent after it requires a `remove` or `merge` modification naming that record ID, so a smaller plan is a recorded decision rather than a silent loss.
 
 ## Required artifacts
 

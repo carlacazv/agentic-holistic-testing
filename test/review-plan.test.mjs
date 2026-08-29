@@ -54,3 +54,46 @@ test("review artifacts finalize with checksums", async (t) => {
   });
   assert.equal(finalized.envelope.status, "completed");
 });
+
+test("a structurally unusable bundle blocks instead of crashing the review", async () => {
+  const review = await reviewFixture();
+  const malformed = reviewPlan({ ...review, before: { ...review.before, requirements: "not-an-array" } });
+  assert.equal(malformed.valid, false);
+  assert.deepEqual(malformed.errors, ["/before/requirements: expected array"]);
+  assert.equal(malformed.before_metrics, null);
+
+  const absent = reviewPlan({ ...review, before: null });
+  assert.deepEqual(absent.errors, ["/before: expected a plan bundle object"]);
+});
+
+test("dropped test cases require a recorded removal", async () => {
+  const review = await reviewFixture();
+  const kept = new Set(["case-age-below", "case-age-at", "case-age-above", "case-state"]);
+  const dropped = ["case-decision", "case-equivalence", "case-scenario", "case-pairwise", "case-error"];
+  review.before = structuredClone(review.after);
+  review.after.test_cases = review.after.test_cases.filter((testCase) => kept.has(testCase.id));
+  review.after.test_steps = review.after.test_steps.filter((step) => kept.has(step.test_case_id));
+  review.after.requirement_test_links = review.after.requirement_test_links.filter((link) => kept.has(link.test_case_id));
+  review.after.risk_test_links = review.after.risk_test_links.filter((link) => kept.has(link.test_case_id));
+  review.findings = [];
+  review.modifications = [];
+
+  const silent = reviewPlan(review);
+  assert.equal(silent.valid, false);
+  assert.equal(silent.after_metrics.test_cases_total, 4);
+  for (const testCase of dropped) {
+    assert.match(silent.errors.join("\n"), new RegExp(`/test_cases/${testCase}: removed without a recorded`));
+  }
+
+  review.findings = [{ id: "finding-duplication", severity: "medium", target: "test_cases", summary: "Five cases duplicate the boundary group", status: "resolved", unblocker: "" }];
+  review.modifications = dropped.map((testCase) => ({
+    id: `mod-${testCase}`,
+    finding_id: "finding-duplication",
+    operation: "remove",
+    target: testCase,
+    before: testCase,
+    after: "",
+    rationale: "Duplicate of the retained boundary coverage",
+  }));
+  assert.deepEqual(reviewPlan(review).errors, []);
+});

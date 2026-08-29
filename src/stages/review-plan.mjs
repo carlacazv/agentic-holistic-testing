@@ -3,7 +3,58 @@ import { checksum } from "../core/checksum.mjs";
 import { serializeCsv } from "../core/csv.mjs";
 import { planMetrics, validatePlanBundle } from "./plan.mjs";
 
+const PLAN_COLLECTIONS = Object.freeze([
+  "requirements",
+  "risks",
+  "test_cases",
+  "test_steps",
+  "requirement_test_links",
+  "risk_test_links",
+]);
+
+const REMOVAL_OPERATIONS = Object.freeze(["remove", "merge"]);
+
+function structuralErrors(bundle, side) {
+  if (bundle === null || typeof bundle !== "object" || Array.isArray(bundle)) {
+    return [`/${side}: expected a plan bundle object`];
+  }
+  return PLAN_COLLECTIONS
+    .filter((collection) => bundle[collection] !== undefined && !Array.isArray(bundle[collection]))
+    .map((collection) => `/${side}/${collection}: expected array`);
+}
+
+function identified(records) {
+  return (records ?? []).filter((record) => record !== null && typeof record === "object" && typeof record.id === "string");
+}
+
+function removalsWithoutModification(beforeRecords, afterIds, modifications, collection, retained = () => true) {
+  const errors = [];
+  for (const record of identified(beforeRecords)) {
+    if (afterIds.has(record.id) || !retained(record)) continue;
+    const recorded = modifications.some(
+      (modification) => modification.target === record.id && REMOVAL_OPERATIONS.includes(modification.operation),
+    );
+    if (!recorded) {
+      errors.push(`/${collection}/${record.id}: removed without a recorded remove or merge modification`);
+    }
+  }
+  return errors;
+}
+
 export function reviewPlan({ before, after, findings = [], modifications = [] }) {
+  const structural = [...structuralErrors(before, "before"), ...structuralErrors(after, "after")];
+  if (structural.length > 0) {
+    return {
+      valid: false,
+      errors: structural,
+      before_validation_errors: [],
+      after_validation_errors: [],
+      before_metrics: null,
+      after_metrics: null,
+      checksums: null,
+    };
+  }
+
   const errors = [];
   const beforeValidation = validatePlanBundle(before);
   const afterValidation = validatePlanBundle(after);
@@ -54,6 +105,17 @@ export function reviewPlan({ before, after, findings = [], modifications = [] })
   if (findings.some((finding) => finding.status === "resolved") && modifications.length === 0) {
     errors.push("/modifications: review claims improvement without modifications");
   }
+
+  const afterCaseIds = new Set(identified(after.test_cases).map((record) => record.id));
+  const afterStepIds = new Set(identified(after.test_steps).map((record) => record.id));
+  errors.push(...removalsWithoutModification(before.test_cases, afterCaseIds, modifications, "test_cases"));
+  errors.push(...removalsWithoutModification(
+    before.test_steps,
+    afterStepIds,
+    modifications,
+    "test_steps",
+    (step) => afterCaseIds.has(step.test_case_id),
+  ));
 
   return {
     valid: errors.length === 0,
