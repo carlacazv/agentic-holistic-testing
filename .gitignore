@@ -4,3 +4,4 @@ coverage/
 .codex/worktrees/
 test-results/*
 *.log
+.claude/worktrees/
