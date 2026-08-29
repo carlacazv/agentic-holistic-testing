@@ -10,9 +10,9 @@ test("Codex adapter builds in a clean temporary home", async (t) => {
   t.after(() => rm(directory, { recursive: true, force: true }));
   const result = await buildAdapter("codex", directory);
   assert.equal(result.provider, "codex");
-  assert.equal(result.skills.length, 6);
+  assert.equal(result.skills.length, 7);
   const generated = new Map(result.skills.map((entry) => [entry.id, entry]));
-  assert.deepEqual([...generated.keys()].sort(), ["accessibility", "automation-strategy", "explore", "implement-playwright", "plan", "review-plan"]);
+  assert.deepEqual([...generated.keys()].sort(), ["accessibility", "automation-strategy", "explore", "implement-playwright", "performance", "plan", "review-plan"]);
   const skill = await readFile(path.join(directory, ".agents/skills/holistic-qa-plan/SKILL.md"), "utf8");
   assert.match(skill, /name: holistic-qa:plan/);
   assert.match(skill, new RegExp(generated.get("plan").source_checksum.replace(":", "\\:")));

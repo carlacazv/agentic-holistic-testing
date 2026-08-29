@@ -1,0 +1,104 @@
+import { canonicalJson } from "../core/canonical.mjs";
+import { serializeCsv } from "../core/csv.mjs";
+
+export function distribution(values) {
+  if (!Array.isArray(values) || values.length < 3 || values.some((value) => !Number.isFinite(value) || value < 0)) {
+    throw new TypeError("A timing distribution requires at least three non-negative finite samples");
+  }
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  return {
+    samples: sorted.length,
+    min: sorted[0],
+    median: Number(median.toFixed(2)),
+    p95: sorted[Math.ceil(sorted.length * 0.95) - 1],
+    max: sorted.at(-1),
+  };
+}
+
+function actualForBudget(audit, budget) {
+  if (budget.source === "api") {
+    const timing = audit.api_timings.find((entry) => entry.endpoint === budget.target);
+    return timing ? distribution(timing.samples_ms)[budget.statistic] : undefined;
+  }
+  const values = audit.lighthouse_runs
+    .filter((entry) => entry.page === budget.target)
+    .map((entry) => entry.metrics[budget.metric])
+    .filter(Number.isFinite);
+  if (values.length < 3) return undefined;
+  return distribution(values)[budget.statistic];
+}
+
+export function evaluateBudgets(audit) {
+  return (audit.budgets ?? []).map((budget) => {
+    const actual = actualForBudget(audit, budget);
+    const passed = actual === undefined ? false : budget.direction === "max" ? actual <= budget.threshold : actual >= budget.threshold;
+    return { ...budget, actual, passed };
+  });
+}
+
+export function validatePerformanceAudit(audit) {
+  const errors = [];
+  if (!["budget", "baseline"].includes(audit?.mode)) errors.push("/mode: expected budget or baseline");
+  if (!Array.isArray(audit?.scope?.pages) || !Array.isArray(audit?.scope?.endpoints)) errors.push("/scope: pages and endpoints required");
+  if ((audit?.lighthouse_runs?.length ?? 0) < 3) errors.push("/lighthouse_runs: at least three comparable runs required");
+  const lighthousePages = new Set((audit?.lighthouse_runs ?? []).map((entry) => entry.page));
+  for (const page of audit?.scope?.pages ?? []) if (!lighthousePages.has(page)) errors.push(`/lighthouse_runs: missing page ${page}`);
+  for (const timing of audit?.api_timings ?? []) {
+    try { distribution(timing.samples_ms); } catch (error) { errors.push(`/api_timings/${timing.endpoint}: ${error.message}`); }
+    if (!Array.isArray(timing.errors)) errors.push(`/api_timings/${timing.endpoint}/errors: required`);
+  }
+  const timingEndpoints = new Set((audit?.api_timings ?? []).map((entry) => entry.endpoint));
+  for (const endpoint of audit?.scope?.endpoints ?? []) if (!timingEndpoints.has(endpoint)) errors.push(`/api_timings: missing endpoint ${endpoint}`);
+  if (typeof audit?.variability_notes !== "string" || audit.variability_notes.length === 0) errors.push("/variability_notes: required");
+  if (audit?.mode === "budget" && (audit.budgets?.length ?? 0) === 0) errors.push("/budgets: budget mode requires thresholds");
+  if (audit?.mode === "baseline" && (audit.budgets?.length ?? 0) > 0) errors.push("/budgets: baseline mode must not invent thresholds");
+
+  const defectIds = new Set((audit?.defects ?? []).map((defect) => defect.id));
+  const evaluations = evaluateBudgets(audit);
+  for (const evaluation of evaluations) {
+    if (evaluation.actual === undefined) errors.push(`/budgets/${evaluation.id}: comparable samples unavailable`);
+    if (!evaluation.passed) {
+      const regression = (audit.regressions ?? []).find((entry) => entry.budget_id === evaluation.id);
+      if (!regression || !defectIds.has(regression.defect_id)) errors.push(`/regressions: failed budget ${evaluation.id} requires linked defect`);
+    }
+  }
+  return { valid: errors.length === 0, errors, evaluations };
+}
+
+export function performanceMetrics(audit) {
+  const evaluations = evaluateBudgets(audit);
+  return {
+    mode: audit.mode,
+    lighthouse_runs: audit.lighthouse_runs.length,
+    api_endpoints: audit.api_timings.length,
+    budgets_total: evaluations.length,
+    budgets_passed: evaluations.filter((entry) => entry.passed).length,
+    budgets_failed: evaluations.filter((entry) => !entry.passed).length,
+    sla_claimed: audit.mode === "budget",
+  };
+}
+
+export function performanceRequiredArtifacts(audit) {
+  return [
+    "performance/scope.md", "performance/budgets-or-baseline.json", "performance/lighthouse-results.json",
+    "performance/api-timings.json", "performance/variability.md", "performance/regressions.csv",
+    "performance/metrics.json", ...audit.defects.map((defect) => `performance/defects/${defect.id}.md`),
+  ];
+}
+
+export async function writePerformanceAudit(store, audit) {
+  const validation = validatePerformanceAudit(audit);
+  if (!validation.valid) throw new TypeError(validation.errors.join("; "));
+  const artifacts = [];
+  artifacts.push(await store.writeArtifact("performance/scope.md", `# Performance Scope\n\n- Mode: ${audit.mode}\n- Environment: ${audit.scope.environment}\n- Pages: ${audit.scope.pages.join(", ")}\n- Endpoints: ${audit.scope.endpoints.join(", ")}\n- Conditions: ${audit.scope.conditions}\n`, { type: "performance.scope", mediaType: "text/markdown" }));
+  artifacts.push(await store.writeArtifact("performance/budgets-or-baseline.json", `${canonicalJson({ mode: audit.mode, budgets: validation.evaluations, uncertainty: audit.mode === "baseline" ? "No SLA was supplied; values are a comparable baseline only." : null })}\n`, { type: "performance.budgets", mediaType: "application/json" }));
+  artifacts.push(await store.writeArtifact("performance/lighthouse-results.json", `${canonicalJson(audit.lighthouse_runs)}\n`, { type: "performance.lighthouse", mediaType: "application/json" }));
+  artifacts.push(await store.writeArtifact("performance/api-timings.json", `${canonicalJson(audit.api_timings.map((entry) => ({ ...entry, summary: distribution(entry.samples_ms) })))}\n`, { type: "performance.api", mediaType: "application/json" }));
+  artifacts.push(await store.writeArtifact("performance/variability.md", `# Variability Notes\n\n${audit.variability_notes}\n`, { type: "performance.variability", mediaType: "text/markdown" }));
+  artifacts.push(await store.writeArtifact("performance/regressions.csv", serializeCsv(["id", "budget_id", "metric", "actual", "threshold", "defect_id", "evidence"], audit.regressions ?? []), { type: "performance.regressions", mediaType: "text/csv" }));
+  artifacts.push(await store.writeArtifact("performance/metrics.json", `${canonicalJson(performanceMetrics(audit))}\n`, { type: "performance.metrics", mediaType: "application/json" }));
+  for (const defect of audit.defects) artifacts.push(await store.writeArtifact(`performance/defects/${defect.id}.md`, `# ${defect.title}\n\n${defect.reproduction}\n`, { type: "performance.defect", mediaType: "text/markdown" }));
+  return artifacts;
+}
