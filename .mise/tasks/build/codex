@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Build the Codex installation layout into dist/codex/.agents/skills/"
+
+set -e
+
+npm run build:codex

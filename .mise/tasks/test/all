@@ -1,0 +1,7 @@
+#!/bin/bash
+#MISE description="Run every test layer: unit, Playwright fixture, and performance fixture"
+#MISE depends=["test:unit", "test:playwright", "test:performance"]
+
+set -e
+
+echo "All test layers passed"

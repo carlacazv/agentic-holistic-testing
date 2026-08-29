@@ -1,0 +1,7 @@
+#!/bin/bash
+#MISE description="First-run onboarding: install dependencies and build both provider skill layouts"
+#MISE depends=["node:install", "build:all"]
+
+set -e
+
+echo "Setup complete. Copy dist/codex/.agents/skills/* or dist/claude/.claude/skills/* into your target project."

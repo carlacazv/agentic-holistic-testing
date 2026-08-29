@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Run the Playwright fixture suite (3 repeats, no retries)"
+
+set -e
+
+npm run test:playwright:fixture

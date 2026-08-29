@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Validate active and archived OpenSpec artifacts (strict)"
+
+set -e
+
+npm run validate:openspec

@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Run the full validation pipeline: schemas, every test layer, both adapters, OpenSpec, and the contamination scan"
+
+set -e
+
+npm run validate

@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Rebuild the Codex and Claude Code adapters in a temp dir and verify source checksums"
+
+set -e
+
+npm run validate:adapter

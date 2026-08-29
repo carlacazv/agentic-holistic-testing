@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Remove node_modules and the built provider adapter layouts"
+
+set -e
+
+rm -rf node_modules dist

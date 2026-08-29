@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Install npm dependencies from the lockfile (registry pinned)"
+
+set -e
+
+npm ci --ignore-scripts --registry=https://registry.npmjs.org/

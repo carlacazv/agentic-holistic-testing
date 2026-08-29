@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Scan versioned files for credential and private-registry contamination"
+
+set -e
+
+npm run scan

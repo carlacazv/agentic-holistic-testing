@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Validate JSON Schemas and the pinned browser integration"
+
+set -e
+
+npm run validate:schemas

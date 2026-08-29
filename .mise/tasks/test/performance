@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Run the Lighthouse/API performance fixture"
+
+set -e
+
+npm run test:performance:fixture

@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Build the Claude Code installation layout into dist/claude/.claude/skills/"
+
+set -e
+
+npm run build:claude

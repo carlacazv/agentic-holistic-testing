@@ -1,0 +1,7 @@
+#!/bin/bash
+#MISE description="Build both the Codex and Claude Code installation layouts"
+#MISE depends=["build:codex", "build:claude"]
+
+set -e
+
+echo "Built dist/codex and dist/claude"

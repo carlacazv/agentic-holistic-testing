@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Run the Node.js unit test suite"
+
+set -e
+
+npm test
