@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "run_id": "run-fixture-1000",
+  "skill": "plan",
+  "status": "completed",
+  "inputs": ["requirements.md"],
+  "artifacts": [],
+  "metrics": {
+    "requirements": 0
+  },
+  "gaps": [],
+  "residual_risks": [],
+  "approvals": [],
+  "errors": [],
+  "next_actions": []
+}

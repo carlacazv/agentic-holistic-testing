@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:artifact-entry",
+  "title": "Holistic QA artifact entry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "path", "media_type", "checksum", "generation_status", "bytes"],
+  "properties": {
+    "type": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{1,63}$" },
+    "path": { "type": "string", "minLength": 1 },
+    "media_type": { "type": "string", "pattern": "^[a-z0-9.+-]+/[a-z0-9.+-]+$" },
+    "checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "generation_status": { "enum": ["generated", "partial"] },
+    "bytes": { "type": "integer", "minimum": 0 }
+  }
+}

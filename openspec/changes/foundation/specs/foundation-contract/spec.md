@@ -53,7 +53,7 @@ CSV helpers SHALL encode RFC 4180-compatible rows using UTF-8, CRLF row endings,
 - **THEN** strict parsing fails with a row-specific validation error
 
 ### Requirement: Checksummed artifact index
-Every durable artifact SHALL be indexed with its relative path, media type, generation status, byte size, and lowercase SHA-256 checksum. Validation SHALL reject missing files, paths outside the run, checksum mismatches, duplicate paths, and generated artifacts without a checksum.
+Every skill-generated durable artifact SHALL be indexed with its relative path, media type, generation status, byte size, and lowercase SHA-256 checksum. The artifact index and return envelope are validated control files and SHALL NOT index themselves. Validation SHALL reject missing files, paths outside the run, checksum mismatches, duplicate paths, and generated artifacts without a checksum.
 
 #### Scenario: Tampered artifact
 - **WHEN** an indexed artifact changes after its checksum was recorded

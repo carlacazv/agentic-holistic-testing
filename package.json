@@ -1,0 +1,37 @@
+{
+  "name": "@carlacazv/holistic-qa",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Provider-neutral runtime and Codex skills for holistic QA",
+  "type": "module",
+  "bin": {
+    "holistic-qa": "src/cli.mjs"
+  },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./schemas/*": "./schemas/*"
+  },
+  "files": [
+    "src",
+    "schemas",
+    "skills",
+    "integrations",
+    "scripts/build-adapter.mjs"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@fission-ai/openspec": "1.10.0"
+  },
+  "scripts": {
+    "build:codex": "node scripts/build-adapter.mjs codex",
+    "test": "node --test",
+    "validate:adapter": "node scripts/build-adapter.mjs codex --check",
+    "validate:schemas": "node scripts/validate-schemas.mjs",
+    "scan": "node scripts/scan-contamination.mjs",
+    "validate:openspec": "openspec validate --all --strict --no-interactive && openspec validate --archived --strict --no-interactive",
+    "validate": "npm run validate:schemas && npm test && npm run validate:adapter && npm run validate:openspec && npm run scan"
+  },
+  "license": "MIT"
+}

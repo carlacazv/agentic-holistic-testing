@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:execution-context",
+  "title": "Holistic QA execution context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["environment", "mode", "production_authorized", "allowed_capabilities", "approvals", "credentials"],
+  "properties": {
+    "environment": { "enum": ["local", "development", "test", "staging", "production"] },
+    "mode": { "enum": ["guided", "autonomous"] },
+    "production_authorized": { "type": "boolean" },
+    "allowed_capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "approvals": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "credentials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider", "key"],
+        "properties": {
+          "provider": { "type": "string", "minLength": 1 },
+          "key": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

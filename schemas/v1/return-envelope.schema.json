@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:return-envelope",
+  "title": "Holistic QA return envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "skill", "status", "inputs", "artifacts", "metrics", "gaps", "residual_risks", "approvals", "errors", "next_actions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run_id": { "type": "string", "pattern": "^run-[a-z0-9][a-z0-9-]{5,63}$" },
+    "skill": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+    "status": { "enum": ["completed", "partial", "blocked", "failed"] },
+    "inputs": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "artifacts": { "type": "array", "items": { "$ref": "urn:holistic-qa:schema:v1:artifact-entry" } },
+    "metrics": { "type": "object" },
+    "gaps": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "residual_risks": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "approvals": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "errors": { "type": "array", "items": { "$ref": "urn:holistic-qa:schema:v1:error" } },
+    "next_actions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+  }
+}

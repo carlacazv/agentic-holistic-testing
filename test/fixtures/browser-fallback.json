@@ -1,0 +1,11 @@
+{
+  "mcp": {
+    "available": false
+  },
+  "browser_tool": {
+    "available": true
+  },
+  "cli": {
+    "available": true
+  }
+}

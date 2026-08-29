@@ -32,7 +32,7 @@ Versioned JSON Schemas under `schemas/v1/` document machine contracts. Runtime v
 
 ### Make the run store the trust boundary
 
-`RunStore` owns validated run IDs, durable/raw roots, safe path resolution, artifact registration, redaction promotion, and finalization. All indexed paths are POSIX-style relative paths beneath the durable run directory. Finalization recomputes bytes and checksums from disk, sorts entries by path, writes the artifact index atomically, then writes the envelope atomically. A generic workspace writer was rejected because it would distribute path and completion checks across skills.
+`RunStore` owns validated run IDs, durable/raw roots, safe path resolution, artifact registration, redaction promotion, and finalization. All indexed paths are POSIX-style relative paths beneath the durable run directory. Finalization recomputes bytes and checksums from disk, sorts entries by path, writes the artifact index atomically, then writes the envelope atomically. These two control files are schema-validated but excluded from the artifact entries to avoid recursive self-checksums. A generic workspace writer was rejected because it would distribute path and completion checks across skills.
 
 ### Separate raw evidence from durable artifacts
 
