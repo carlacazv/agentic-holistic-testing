@@ -26,7 +26,7 @@ Run the pipeline in order - each step consumes the checksum-valid run the previo
 | 1 | `plan` | Risk-scored, technique-driven test plan. Every requirement and risk is test-linked or explicitly disposed as deferred, waived, externally covered, or not testable, with rationale. |
 | 2 | `review-plan` | Reviews a checksum-valid plan run and reports the findings in the conversation. You choose to apply them, add them as a complement that only extends the plan, or neither - a review you do not act on writes nothing. A resolved finding with no linked modification, or any metric regression, is rejected. |
 | 3 | `automation-strategy` | Recommends the lowest effective level per case (unit, component, API, browser E2E, manual) and emits an approval-gated Playwright candidate list. Never generates code. |
-| 4 | `implement-playwright` | Turns approved candidates into TypeScript tests using Given/When describes, Should steps, and page or component objects. Requires three zero-retry repetitions with no flaky outcome. |
+| 4 | `implement-playwright` | Turns approved candidates into TypeScript tests under `tests/<feature>/` with every page and component object in `tests/pom/`, using Given/When describes and Should steps. Records whether each locator was confirmed against a running target or inferred. Requires three zero-retry repetitions with no flaky outcome. |
 
 Independent audits need an authorized target environment rather than a plan, and run in any order:
 

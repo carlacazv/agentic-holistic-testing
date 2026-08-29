@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ItemsPage } from "./pages/items.page";
+import { ItemsPage } from "../pom/items.page";
 
 test.describe("Given an empty item list", () => {
   let items: ItemsPage;

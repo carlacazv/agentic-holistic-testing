@@ -5,8 +5,8 @@ const systemChrome = "/usr/bin/google-chrome";
 const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? (existsSync(systemChrome) ? systemChrome : undefined);
 
 export default defineConfig({
-  testDir: ".",
-  testMatch: "*.spec.ts",
+  testDir: "tests",
+  testMatch: "**/*.spec.ts",
   fullyParallel: false,
   workers: 1,
   retries: 0,
