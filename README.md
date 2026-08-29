@@ -13,18 +13,25 @@ npx github:carlacazv/agentic-holistic-testing install codex    # -> .agents/skil
 npx github:carlacazv/agentic-holistic-testing install claude   # -> .claude/skills/holistic-qa-<id>/
 ```
 
-Codex then lists `holistic-qa:plan` and the rest; Claude Code lists `holistic-qa-plan`. Add `--target <dir>` to install elsewhere. Both providers can share one project: separate directories, separate manifests.
+Codex then lists `holistic-qa:plan` and the rest; Claude Code lists `holistic-qa-plan`. Alongside the skills, each install writes a `holistic-qa-README.md` naming the pipeline order and the independent audits. Add `--target <dir>` to install elsewhere. Both providers can share one project: separate directories, separate manifests.
 
 Re-run the command to update. There is no auto-update, and `npx` resolves the default branch when you run it, so you get `main` rather than a release; pin with `#<sha>` when a run must be reproducible.
 
 ## Skills
 
+Run the pipeline in order - each step consumes the checksum-valid run the previous one produced, and each generated skill states its position and prerequisite so an agent can sequence them without this table.
+
+| # | Skill | What it does |
+| --- | --- | --- |
+| 1 | `plan` | Risk-scored, technique-driven test plan. Every requirement and risk is test-linked or explicitly disposed as deferred, waived, externally covered, or not testable, with rationale. |
+| 2 | `review-plan` | Reviews a checksum-valid plan run and reports the findings in the conversation. You choose to apply them, add them as a complement that only extends the plan, or neither - a review you do not act on writes nothing. A resolved finding with no linked modification, or any metric regression, is rejected. |
+| 3 | `automation-strategy` | Recommends the lowest effective level per case (unit, component, API, browser E2E, manual) and emits an approval-gated Playwright candidate list. Never generates code. |
+| 4 | `implement-playwright` | Turns approved candidates into TypeScript tests using Given/When describes, Should steps, and page or component objects. Requires three zero-retry repetitions with no flaky outcome. |
+
+Independent audits need an authorized target environment rather than a plan, and run in any order:
+
 | Skill | What it does |
 | --- | --- |
-| `plan` | Risk-scored, technique-driven test plan. Every requirement and risk is test-linked or explicitly disposed as deferred, waived, externally covered, or not testable, with rationale. |
-| `review-plan` | Reviews a checksum-valid plan run and returns exact findings, modifications, and before/after metrics. A resolved finding with no linked modification, or any metric regression, is rejected. |
-| `automation-strategy` | Recommends the lowest effective level per case (unit, component, API, browser E2E, manual) and emits an approval-gated Playwright candidate list. Never generates code. |
-| `implement-playwright` | Turns approved candidates into TypeScript tests using Given/When describes, Should steps, and page or component objects. Requires three zero-retry repetitions with no flaky outcome. |
 | `explore` | Session-based exploratory testing under an authorized charter and timebox, with indexed redacted evidence and one local reproduction folder per defect. |
 | `accessibility` | WCAG 2.2 AA scope combining axe with manual checks. Automated passes alone stay partial evidence, and the output is not a certification. |
 | `performance` | Compares declared budgets, or establishes a repeatable Lighthouse and API baseline that reports uncertainty instead of inventing an SLA. |
