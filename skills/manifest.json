@@ -24,6 +24,10 @@
     {
       "id": "accessibility",
       "description": "Audit WCAG 2.2 AA scope with automated axe results, manual evidence, unresolved criteria, and linked defects."
+    },
+    {
+      "id": "performance",
+      "description": "Evaluate declared performance budgets or establish a repeatable Lighthouse and API timing baseline without inventing an SLA."
     }
   ]
 }

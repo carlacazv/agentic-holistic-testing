@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:holistic-qa:schema:v1:performance-audit",
+  "title": "Holistic QA performance audit",
+  "type": "object",
+  "required": ["mode", "scope", "budgets", "lighthouse_runs", "api_timings", "variability_notes", "regressions", "defects"]
+}

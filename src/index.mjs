@@ -15,3 +15,4 @@ export * from "./stages/automation-strategy.mjs";
 export * from "./stages/implement-playwright.mjs";
 export * from "./stages/explore.mjs";
 export * from "./stages/accessibility.mjs";
+export * from "./stages/performance.mjs";
