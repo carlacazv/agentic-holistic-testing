@@ -5,12 +5,12 @@ Assess every case in a checksum-valid plan and recommend the lowest level that p
 For each planned case, record:
 
 - Recommended level: unit, component, API, browser E2E, or manual.
-- Playwright browser and API suitability.
+- Playwright browser and API suitability. A level is suitable only when it gives confidence equivalent to the levels above it, so suitability carries the equivalence judgment rather than mere feasibility.
 - Impact value, stability, and cost as separate 1–5 values.
 - Decision: automate, manual, or defer.
 - Explicit implementation approval and evidence-based rationale.
 
-Push coverage down in this order when confidence is equivalent: unit, component, API, browser E2E. Keep browser E2E for browser-only user risk, integration confidence, or behavior not observable below the UI. Keep human judgment, visual nuance, and inherently unstable/uncontrolled checks manual. Do not remove higher-level or manual coverage merely because a lower-level test exists.
+Push coverage down in this order when confidence is equivalent: unit, component, API, browser E2E. The recommendation is the lowest level marked suitable, so a risk that only appears higher up is declared by withholding the lower level's suitability, never by recommending above the flags. Keep browser E2E for browser-only user risk, integration confidence, or behavior not observable below the UI: a widget that can be exercised in isolation but whose risk only appears in the assembled UI is not component suitable. Keep human judgment, visual nuance, and inherently unstable/uncontrolled checks manual. Do not remove higher-level or manual coverage merely because a lower-level test exists.
 
 Only `automate` rows with explicit approval and recommended level API or browser E2E enter `approved-playwright-candidates.json`. A recommendation is not approval. Record gaps and residual risks for deferred or unavailable coverage; never silently omit a plan case.
 

@@ -47,12 +47,12 @@ Do not abstract past the point of readability. The Act and the assertions stay v
 
 ## Choosing page or component objects
 
-UI abstraction is a decision, not a default. Decide it per browser spec from the approved strategy rows, declare the choice as `ui_abstraction` on the file, and record why.
+UI abstraction is a decision, not a default. Decide it per browser spec from the approved candidates and the surfaces they traverse, declare the choice as `ui_abstraction` on the file, and record why.
 
 - **API candidates take no UI abstraction.** Request-context tests address the HTTP boundary directly; a page object there is indirection with no reuse.
 - **`inline`** — keep locators in the spec when the approved candidates include exactly one browser row and the flow touches one surface. Abstracting a single flow buys nothing and costs a layer. This choice requires a written rationale.
 - **Page object (POM)** — when more than one approved browser candidate traverses the same route or flow, or when the strategy scored that surface as low `stability`, so churn should hit one file instead of every spec. Model one object per route or per coherent flow.
-- **Component object (COM)** — when the recurring surface is a widget reused across several routes or flows rather than a page: a design-system control, a shared table, a date picker, a modal. Strategy rows marked `component_suitable` are the strongest signal that the behavior belongs to a component boundary rather than a page; when such a row is nonetheless approved at browser E2E because the risk is only observable in the assembled UI, model that widget as a component object and compose it into the pages that use it.
+- **Component object (COM)** — when the recurring surface is a widget reused across several routes or flows rather than a page: a design-system control, a shared table, a date picker, a modal. The signal is repetition across the approved browser specs: the same widget's locators are needed under more than one route or flow, so the abstraction follows the widget rather than whichever page it happens to sit on. Compose it into the page objects that use it. Strategy rows carry no component signal here — a case whose confidence is equivalent at component level is recommended and covered at that level, and never becomes a Playwright candidate.
 
 Prefer composing component objects inside page objects over deep page-object inheritance. Objects expose locators and actions only: they must contain no assertions and declare no tests, so every expectation stays in a `Should` step where a failure names it. Objects that grow branching logic about what the caller wants are a signal to split them.
 
