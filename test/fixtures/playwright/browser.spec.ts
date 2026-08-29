@@ -1,14 +1,26 @@
 import { expect, test } from "@playwright/test";
+import { ItemsPage } from "./pages/items.page";
 
-test.beforeEach(async ({ request }) => {
-  await request.delete("/api/items");
-});
+test.describe("Given an empty item list", () => {
+  let items: ItemsPage;
 
-test("case-browser adds an item with accessible interaction", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("Name").fill("Browser item");
-  await page.getByRole("button", { name: "Add item" }).click();
+  test.beforeEach(async ({ page, request }) => {
+    await request.delete("/api/items");
+    items = new ItemsPage(page);
+    await items.open();
+  });
 
-  await expect(page.getByRole("status")).toHaveText("Item added");
-  await expect(page.getByRole("list", { name: "Items" })).toContainText("Browser item");
+  test.describe("When adding an item with accessible interaction", () => {
+    test("case-browser adds the item to the list", async () => {
+      await items.addItem("Browser item");
+
+      await test.step("Should announce that the item was added", async () => {
+        await expect(items.status).toHaveText("Item added");
+      });
+
+      await test.step("Should show the item in the list", async () => {
+        await expect(items.list).toContainText("Browser item");
+      });
+    });
+  });
 });
