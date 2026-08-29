@@ -14,8 +14,13 @@ const focusedTest = /\btest\s*(?:\.\w+)*\.only\s*\(/;
 const describeTitles = /test\.describe\s*\(\s*(['"`])([^'"`]*)\1/g;
 const stepTitles = /test\.step\s*\(\s*(['"`])([^'"`]*)\1/g;
 
+const specPath = /^tests\/(?!pom\/)[^/]+\/[^/]+\.spec\.ts$/;
+const pageObjectPath = /^tests\/pom\/[^/]+\.page\.ts$/;
+const componentObjectPath = /^tests\/pom\/[^/]+\.component\.ts$/;
+
 export const FILE_KINDS = Object.freeze(["spec", "page-object", "component-object"]);
-export const UI_ABSTRACTIONS = Object.freeze(["page-object", "component-object", "inline"]);
+export const UI_ABSTRACTIONS = Object.freeze(["page-object", "component-object"]);
+export const LOCATOR_EVIDENCE = Object.freeze(["live-snapshot", "inferred"]);
 
 const OBJECT_KINDS = Object.freeze(["page-object", "component-object"]);
 
@@ -40,10 +45,6 @@ export function validatePlaywrightImplementation(manifest) {
     }
     candidates.set(candidate.test_case_id, candidate);
   }
-  const browserCandidates = [...candidates.values()].filter(
-    (candidate) => candidate.recommended_level === "browser-e2e",
-  );
-
   if (!Array.isArray(manifest.candidates) || manifest.candidates.length === 0) {
     errors.push("/candidates: at least one approved candidate is required");
   }
@@ -63,14 +64,22 @@ export function validatePlaywrightImplementation(manifest) {
     }
     if (typeof file.path !== "string" || !file.path.endsWith(".ts")) {
       errors.push(`/files/${index}/path: expected a TypeScript file`);
-    } else if (kind === "spec" && !file.path.endsWith(".spec.ts")) {
-      errors.push(`/files/${index}/path: expected TypeScript .spec.ts file`);
-    } else if (OBJECT_KINDS.includes(kind) && file.path.endsWith(".spec.ts")) {
-      errors.push(`/files/${file.path}: a ${kind} must not be a .spec.ts file`);
+    } else if (kind === "spec" && !specPath.test(file.path)) {
+      errors.push(`/files/${file.path}: a spec belongs at tests/<feature>/<name>.spec.ts`);
+    } else if (kind === "page-object" && !pageObjectPath.test(file.path)) {
+      errors.push(`/files/${file.path}: a page-object belongs at tests/pom/<name>.page.ts`);
+    } else if (kind === "component-object" && !componentObjectPath.test(file.path)) {
+      errors.push(`/files/${file.path}: a component-object belongs at tests/pom/<name>.component.ts`);
     }
     if (typeof file.source !== "string") {
       errors.push(`/files/${index}/source: required`);
       continue;
+    }
+    if (
+      (accessibleLocator.test(file.source) || structuralLocator.test(file.source)) &&
+      !LOCATOR_EVIDENCE.includes(file.locator_evidence)
+    ) {
+      errors.push(`/files/${file.path}/locator_evidence: expected one of ${LOCATOR_EVIDENCE.join(", ")}`);
     }
 
     if (fixedWait.test(file.source)) errors.push(`/files/${file.path}: fixed waits are prohibited`);
@@ -135,13 +144,6 @@ export function validatePlaywrightImplementation(manifest) {
 
       if (!UI_ABSTRACTIONS.includes(file.ui_abstraction)) {
         errors.push(`/files/${file.path}/ui_abstraction: expected one of ${UI_ABSTRACTIONS.join(", ")}`);
-      } else if (file.ui_abstraction === "inline") {
-        if (browserCandidates.length > 1) {
-          errors.push(`/files/${file.path}/ui_abstraction: more than one browser candidate requires a page or component object`);
-        }
-        if (typeof file.ui_abstraction_rationale !== "string" || file.ui_abstraction_rationale.length === 0) {
-          errors.push(`/files/${file.path}/ui_abstraction_rationale: inline abstraction requires a rationale`);
-        }
       } else if (!declaredObjectKinds.has(file.ui_abstraction)) {
         errors.push(`/files/${file.path}/ui_abstraction: declares ${file.ui_abstraction} but no such file is provided`);
       }
@@ -172,6 +174,12 @@ export function validatePlaywrightImplementation(manifest) {
   }
   if (verification.passed !== verification.tests * verification.repetitions) errors.push("/verification_results/passed: inconsistent total");
   return { valid: errors.length === 0, errors };
+}
+
+export function inferredLocatorFiles(manifest) {
+  return (manifest.files ?? [])
+    .filter((file) => file.locator_evidence === "inferred")
+    .map((file) => file.path);
 }
 
 export const PLAYWRIGHT_REQUIRED_ARTIFACTS = Object.freeze([

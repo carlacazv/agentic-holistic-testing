@@ -6,6 +6,7 @@ import path from "node:path";
 import { RunStore } from "../src/core/run-store.mjs";
 import {
   PLAYWRIGHT_REQUIRED_ARTIFACTS,
+  inferredLocatorFiles,
   validatePlaywrightImplementation,
   writePlaywrightImplementation,
 } from "../src/stages/implement-playwright.mjs";
@@ -21,13 +22,18 @@ async function implementationFixture() {
       { test_case_id: "case-browser", decision: "automate", approved: true, recommended_level: "browser-e2e" }
     ],
     files: [
-      { path: "tests/api.spec.ts", candidate_ids: ["case-api"], source: await fixtureSource("api.spec.ts") },
-      { path: "tests/pages/items.page.ts", kind: "page-object", source: await fixtureSource("pages/items.page.ts") },
+      { path: "tests/items/api.spec.ts", candidate_ids: ["case-api"], source: await fixtureSource("tests/items/api.spec.ts") },
       {
-        path: "tests/browser.spec.ts",
+        path: "tests/pom/items.page.ts",
+        kind: "page-object",
+        locator_evidence: "live-snapshot",
+        source: await fixtureSource("tests/pom/items.page.ts")
+      },
+      {
+        path: "tests/items/browser.spec.ts",
         candidate_ids: ["case-browser"],
         ui_abstraction: "page-object",
-        source: await fixtureSource("browser.spec.ts")
+        source: await fixtureSource("tests/items/browser.spec.ts")
       }
     ],
     configuration: { reporters: ["html", "json", "junit"], artifacts: ["trace", "screenshot", "video"] },
@@ -38,7 +44,7 @@ async function implementationFixture() {
 }
 
 function browserFile(manifest) {
-  return manifest.files.find((file) => file.path === "tests/browser.spec.ts");
+  return manifest.files.find((file) => file.path === "tests/items/browser.spec.ts");
 }
 
 test("approved fixture implementation satisfies quality gates", async () => {
@@ -50,8 +56,6 @@ test("unapproved, sleep-based, and inaccessible implementations fail", async () 
   manifest.candidates[0].approved = false;
   browserFile(manifest).source = "test('bad', async ({ page }) => { await page.waitForTimeout(1000); await page.locator('.item').click(); });";
   manifest.files = manifest.files.filter((file) => file.kind !== "page-object");
-  browserFile(manifest).ui_abstraction = "inline";
-  browserFile(manifest).ui_abstraction_rationale = "single flow";
   manifest.verification_results.flaky = 1;
   const errors = validatePlaywrightImplementation(manifest).errors.join("\n");
   assert.match(errors, /not approved/);
@@ -111,10 +115,11 @@ test("positional locators and exclusions pass once a finding records them", asyn
   const manifest = await implementationFixture();
   const file = browserFile(manifest);
   file.source = `${file.source}\nawait items.list.getByRole("listitem").first().click();\n`;
+  file.locator_evidence = "live-snapshot";
   manifest.findings = [{
     id: "finding-001",
     category: "locator",
-    target: "tests/browser.spec.ts",
+    target: "tests/items/browser.spec.ts",
     summary: "Position is the behavior under test for the first list entry",
     source_change_approved: false,
   }];
@@ -130,10 +135,10 @@ test("page and component objects must stay free of assertions and tests", async 
   );
 
   const asSpec = await implementationFixture();
-  asSpec.files[1].path = "tests/pages/items.spec.ts";
+  asSpec.files[1].path = "tests/items/items.spec.ts";
   assert.match(
     validatePlaywrightImplementation(asSpec).errors.join("\n"),
-    /page-object must not be a \.spec\.ts file/,
+    /a page-object belongs at tests\/pom\/<name>\.page\.ts/,
   );
 });
 
@@ -149,24 +154,12 @@ test("the UI abstraction decision is explicit and consistent", async () => {
     /declares page-object but no such file is provided/,
   );
 
-  const inlineWithoutRationale = await implementationFixture();
-  inlineWithoutRationale.files = inlineWithoutRationale.files.filter((file) => file.kind !== "page-object");
-  browserFile(inlineWithoutRationale).ui_abstraction = "inline";
+  const inline = await implementationFixture();
+  browserFile(inline).ui_abstraction = "inline";
+  browserFile(inline).ui_abstraction_rationale = "one small flow";
   assert.match(
-    validatePlaywrightImplementation(inlineWithoutRationale).errors.join("\n"),
-    /inline abstraction requires a rationale/,
-  );
-
-  const inlineWithTwoBrowserCandidates = await implementationFixture();
-  inlineWithTwoBrowserCandidates.candidates.push({
-    test_case_id: "case-browser-2", decision: "automate", approved: true, recommended_level: "browser-e2e",
-  });
-  browserFile(inlineWithTwoBrowserCandidates).candidate_ids = ["case-browser", "case-browser-2"];
-  browserFile(inlineWithTwoBrowserCandidates).ui_abstraction = "inline";
-  browserFile(inlineWithTwoBrowserCandidates).ui_abstraction_rationale = "one small flow";
-  assert.match(
-    validatePlaywrightImplementation(inlineWithTwoBrowserCandidates).errors.join("\n"),
-    /more than one browser candidate requires a page or component object/,
+    validatePlaywrightImplementation(inline).errors.join("\n"),
+    /ui_abstraction: expected one of page-object, component-object/,
   );
 });
 
@@ -213,7 +206,7 @@ test("suite-level exclusions and focused tests are rejected", async () => {
   excluded.findings = [{
     id: "finding-002",
     category: "exclusion",
-    target: "tests/browser.spec.ts",
+    target: "tests/items/browser.spec.ts",
     summary: "Offline feed suite is blocked on a missing stub",
     source_change_approved: false,
   }];
@@ -227,4 +220,44 @@ test("reported test counts must cover every declared spec", async () => {
     validatePlaywrightImplementation(manifest).errors.join("\n"),
     /\/verification_results\/tests: fewer executed tests than declared spec files/,
   );
+});
+
+test("every file sits where its kind belongs", async () => {
+  const cases = [
+    ["tests/api.spec.ts", 0, /a spec belongs at tests\/<feature>\/<name>\.spec\.ts/],
+    ["tests/pom/api.spec.ts", 0, /a spec belongs at tests\/<feature>\/<name>\.spec\.ts/],
+    ["tests/items/deep/api.spec.ts", 0, /a spec belongs at tests\/<feature>\/<name>\.spec\.ts/],
+    ["tests/items/items.page.ts", 1, /a page-object belongs at tests\/pom\/<name>\.page\.ts/],
+    ["tests/pom/items.ts", 1, /a page-object belongs at tests\/pom\/<name>\.page\.ts/],
+  ];
+  for (const [replacement, index, expected] of cases) {
+    const manifest = await implementationFixture();
+    manifest.files[index].path = replacement;
+    assert.match(validatePlaywrightImplementation(manifest).errors.join("\n"), expected);
+  }
+
+  const component = await implementationFixture();
+  component.files[1].kind = "component-object";
+  component.files[1].path = "tests/pom/items.component.ts";
+  browserFile(component).ui_abstraction = "component-object";
+  assert.deepEqual(validatePlaywrightImplementation(component).errors, []);
+});
+
+test("a file that declares locators declares where they came from", async () => {
+  const undeclared = await implementationFixture();
+  delete undeclared.files[1].locator_evidence;
+  assert.match(
+    validatePlaywrightImplementation(undeclared).errors.join("\n"),
+    /\/files\/tests\/pom\/items\.page\.ts\/locator_evidence: expected one of live-snapshot, inferred/,
+  );
+
+  const guessed = await implementationFixture();
+  guessed.files[1].locator_evidence = "guessed";
+  assert.match(validatePlaywrightImplementation(guessed).errors.join("\n"), /locator_evidence: expected one of/);
+
+  const inferred = await implementationFixture();
+  inferred.files[1].locator_evidence = "inferred";
+  assert.deepEqual(validatePlaywrightImplementation(inferred).errors, []);
+  assert.deepEqual(inferredLocatorFiles(inferred), ["tests/pom/items.page.ts"]);
+  assert.deepEqual(inferredLocatorFiles(await implementationFixture()), []);
 });
