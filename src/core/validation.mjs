@@ -118,7 +118,7 @@ export function validateArtifactIndex(value) {
 
 export function validateReturnEnvelope(value) {
   const errors = [];
-  const fields = [
+  const requiredFields = [
     "schema_version",
     "run_id",
     "skill",
@@ -132,7 +132,12 @@ export function validateReturnEnvelope(value) {
     "errors",
     "next_actions",
   ];
-  if (!checkObject(value, "", fields, fields, errors)) return errors;
+  const fields = [
+    ...requiredFields,
+    "verification_status",
+    "release_recommendation",
+  ];
+  if (!checkObject(value, "", requiredFields, fields, errors)) return errors;
   if (value.schema_version !== SCHEMA_VERSION) errors.push("/schema_version: expected 1");
   if (typeof value.run_id !== "string" || !RUN_ID_PATTERN.test(value.run_id)) {
     errors.push("/run_id: invalid run ID");
@@ -141,6 +146,12 @@ export function validateReturnEnvelope(value) {
     errors.push("/skill: invalid skill name");
   }
   if (!RUN_STATUSES.includes(value.status)) errors.push("/status: unknown status");
+  if (value.verification_status !== undefined && !["pass", "fail", "inconclusive", "not-run"].includes(value.verification_status)) {
+    errors.push("/verification_status: unknown verification status");
+  }
+  if (value.release_recommendation !== undefined && !["ready", "conditional", "not-ready", "insufficient-evidence"].includes(value.release_recommendation)) {
+    errors.push("/release_recommendation: unknown release recommendation");
+  }
   for (const name of ["inputs", "gaps", "residual_risks", "approvals", "next_actions"]) {
     checkStringArray(value[name], `/${name}`, errors);
   }

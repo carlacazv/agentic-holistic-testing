@@ -27,6 +27,9 @@ export function validateAccessibilityAudit(audit) {
     if (!["pass", "fail", "unresolved", "not-applicable"].includes(check.status)) errors.push(`/manual_checks/${check.criterion}/status: unknown status`);
     if (typeof check.method !== "string" || check.method.length === 0) errors.push(`/manual_checks/${check.criterion}/method: required`);
     for (const id of check.evidence_ids ?? []) if (!evidenceIds.has(id)) errors.push(`/manual_checks/${check.criterion}: unknown evidence ${id}`);
+    if (["pass", "fail"].includes(check.status) && (check.evidence_ids?.length ?? 0) === 0) {
+      errors.push(`/manual_checks/${check.criterion}: ${check.status} requires evidence`);
+    }
     if (check.status === "fail" && (!defectIds.has(check.defect_id) || (check.evidence_ids?.length ?? 0) === 0)) {
       errors.push(`/manual_checks/${check.criterion}: failure requires evidence and linked defect`);
     }

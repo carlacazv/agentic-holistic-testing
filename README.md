@@ -2,7 +2,7 @@
 
 A provider-neutral QA runtime and a set of independently callable skills, packaged for Codex and Claude Code. It makes QA output traceable, checksummed, permission-gated, and explicit about what it did not cover.
 
-Available now: `plan`, `review-plan`, `automation-strategy`, `implement-playwright`, `explore`, `accessibility`, `performance`. Next: `report`, then `cycle`.
+Available now: `plan`, `review-plan`, `automation-strategy`, `implement-playwright`, `explore`, `accessibility`, `performance`, `report`, and the optional `cycle` coordinator.
 
 ## Install
 
@@ -13,7 +13,9 @@ npx github:carlacazv/agentic-holistic-testing install codex    # -> .agents/skil
 npx github:carlacazv/agentic-holistic-testing install claude   # -> .claude/skills/holistic-qa-<id>/
 ```
 
-Codex then lists `holistic-qa:plan` and the rest; Claude Code lists `holistic-qa-plan`. Alongside the skills, each install writes a `holistic-qa-README.md` naming the pipeline order and the independent audits. Add `--target <dir>` to install elsewhere. Both providers can share one project: separate directories, separate manifests.
+Both providers list `holistic-qa-plan` and the remaining skills using portable hyphen-case names. Alongside the skills, each install writes a `holistic-qa-README.md` naming the pipeline order, independent audits, and optional orchestration. Add `--target <dir>` to install elsewhere. Both providers can share one project: separate directories, separate manifests.
+
+Call any skill directly when you want a focused activity. Use `cycle` when you want to start from a quality goal and let the coordinator select the smallest useful set of skills. Explicitly choosing one skill never starts the full cycle.
 
 Re-run the command to update. There is no auto-update, and `npx` resolves the default branch when you run it, so you get `main` rather than a release; pin with `#<sha>` when a run must be reproducible.
 
@@ -36,6 +38,15 @@ Independent audits need an authorized target environment rather than a plan, and
 | `accessibility` | WCAG 2.2 AA scope combining axe with manual checks. Automated passes alone stay partial evidence, and the output is not a certification. |
 | `performance` | Compares declared budgets, or establishes a repeatable Lighthouse and API baseline that reports uncertainty instead of inventing an SLA. |
 
+Optional workflow skills:
+
+| Skill | What it does |
+| --- | --- |
+| `cycle` | Starts from a user goal, selects and sequences relevant work, and preserves explicit single-skill scope. |
+| `report` | Combines valid run envelopes into an evidence-linked recommendation: ready, conditional, not-ready, or insufficient-evidence. |
+
+Workflow completion, verification outcome, and release recommendation are separate. A QA run may complete successfully and correctly report a failed product verification.
+
 ## Run output
 
 ```text
@@ -48,6 +59,8 @@ test-results/<run-id>/     raw evidence, git-ignored
 ```
 
 Every skill returns the same envelope. `completed` requires the declared scope covered and every required artifact valid; it is rejected when an artifact is missing, partial, tampered with, or paired with an unreported gap. `partial` means valid artifacts cover only part of the scope, `blocked` means a recoverable prerequisite is missing, and `failed` means an unrecoverable error.
+
+A completed run requires a non-empty artifact contract and cannot be silently recreated with the same run ID. Use a new run ID for a fork; explicit resume support is represented by the cycle state and will be expanded for stage-level writers.
 
 ## Safety gates
 

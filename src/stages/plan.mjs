@@ -77,6 +77,22 @@ export function validatePlanBundle(bundle) {
   const caseIds = ids(bundle.test_cases, "test_cases", errors);
   ids(bundle.test_steps, "test_steps", errors);
 
+  if (requirementIds.size === 0) errors.push("/requirements: at least one authoritative requirement is required");
+  if (riskIds.size === 0) errors.push("/risks: at least one identified risk is required");
+  if (caseIds.size === 0) errors.push("/test_cases: at least one test case is required");
+  if (!Array.isArray(bundle.test_steps) || bundle.test_steps.length === 0) {
+    errors.push("/test_steps: at least one test step is required");
+  }
+
+  for (const requirement of bundle.requirements ?? []) {
+    if (typeof requirement.title !== "string" || requirement.title.trim().length === 0) {
+      errors.push(`/requirements/${requirement.id ?? "unknown"}/title: required`);
+    }
+    if (typeof requirement.acceptance_criteria !== "string" || requirement.acceptance_criteria.trim().length === 0) {
+      errors.push(`/requirements/${requirement.id ?? "unknown"}/acceptance_criteria: required`);
+    }
+  }
+
   for (const risk of bundle.risks ?? []) {
     try {
       const scored = scoreRisk(risk);
@@ -125,6 +141,12 @@ export function validatePlanBundle(bundle) {
 
   const stepsByCase = new Map([...caseIds].map((id) => [id, []]));
   for (const [index, step] of (bundle.test_steps ?? []).entries()) {
+    if (typeof step.action !== "string" || step.action.trim().length === 0) {
+      errors.push(`/test_steps/${index}/action: required`);
+    }
+    if (typeof step.expected !== "string" || step.expected.trim().length === 0) {
+      errors.push(`/test_steps/${index}/expected: required`);
+    }
     if (!caseIds.has(step.test_case_id)) {
       errors.push(`/test_steps/${index}: unknown test case ${step.test_case_id}`);
     } else {
@@ -169,7 +191,7 @@ export function validatePlanBundle(bundle) {
 }
 
 function percent(numerator, denominator) {
-  return denominator === 0 ? 100 : Number(((numerator / denominator) * 100).toFixed(2));
+  return denominator === 0 ? null : Number(((numerator / denominator) * 100).toFixed(2));
 }
 
 export function planMetrics(bundle) {

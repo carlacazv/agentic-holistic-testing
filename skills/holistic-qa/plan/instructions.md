@@ -44,3 +44,5 @@ If no testable behavior source exists, return `blocked` with a recoverable error
 - Foundation `artifact-index.json` and `return-envelope.json`
 
 Return `completed` only when all accepted requirements and identified risks are test-linked or explicitly disposed and every artifact validates. Return `partial` with uncovered IDs, gaps, and residual risks when useful valid artifacts cover only part of scope. Return `blocked` when no useful plan can be produced because a prerequisite or authoritative behavior source is missing. Never silently exclude unavailable coverage.
+
+A completed plan contains at least one authoritative requirement, identified risk, test case, and step. Every requirement needs non-empty acceptance criteria, and every step needs a non-empty action and expected result. Empty scope is not 100 percent coverage.

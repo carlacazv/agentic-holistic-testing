@@ -7,7 +7,10 @@ import { RunStore } from "../src/core/run-store.mjs";
 import {
   PLAYWRIGHT_REQUIRED_ARTIFACTS,
   inferredLocatorFiles,
+  implementationCompletionGaps,
+  implementationSourceChecksum,
   validatePlaywrightImplementation,
+  verificationOutcome,
   writePlaywrightImplementation,
 } from "../src/stages/implement-playwright.mjs";
 
@@ -16,7 +19,7 @@ function fixtureSource(name) {
 }
 
 async function implementationFixture() {
-  return {
+  const manifest = {
     candidates: [
       { test_case_id: "case-api", decision: "automate", approved: true, recommended_level: "api" },
       { test_case_id: "case-browser", decision: "automate", approved: true, recommended_level: "browser-e2e" }
@@ -39,8 +42,19 @@ async function implementationFixture() {
     configuration: { reporters: ["html", "json", "junit"], artifacts: ["trace", "screenshot", "video"] },
     ci_integration: { command: "npm run test:playwright:fixture" },
     findings: [],
-    verification_results: { tests: 2, repetitions: 3, retries: 0, passed: 6, failed: 0, flaky: 0 }
+    verification_results: {
+      tests: 2, repetitions: 3, retries: 0, passed: 6, failed: 0, flaky: 0, skipped: 0,
+      executed_command: "npm run test:playwright:fixture",
+      report_checksum: `sha256:${"1".repeat(64)}`,
+    }
   };
+  manifest.verification_results.source_checksum = implementationSourceChecksum(manifest);
+  return manifest;
+}
+
+function refreshVerification(manifest) {
+  manifest.verification_results.source_checksum = implementationSourceChecksum(manifest);
+  return manifest;
 }
 
 function browserFile(manifest) {
@@ -61,7 +75,8 @@ test("unapproved, sleep-based, and inaccessible implementations fail", async () 
   assert.match(errors, /not approved/);
   assert.match(errors, /fixed waits/);
   assert.match(errors, /accessible locator/);
-  assert.match(errors, /flaky/);
+  assert.equal(verificationOutcome(manifest), "inconclusive");
+  assert.equal(implementationCompletionGaps(manifest).length, 1);
 });
 
 test("Given/When describes and Should steps are enforced", async () => {
@@ -123,7 +138,7 @@ test("positional locators and exclusions pass once a finding records them", asyn
     summary: "Position is the behavior under test for the first list entry",
     source_change_approved: false,
   }];
-  assert.deepEqual(validatePlaywrightImplementation(manifest).errors, []);
+  assert.deepEqual(validatePlaywrightImplementation(refreshVerification(manifest)).errors, []);
 });
 
 test("page and component objects must stay free of assertions and tests", async () => {
@@ -186,6 +201,26 @@ test("an empty implementation cannot claim completion", () => {
   assert.match(errors, /\/verification_results\/tests: expected a positive integer/);
 });
 
+test("comments cannot impersonate tests and product failures remain valid evidence", async () => {
+  const commentsOnly = await implementationFixture();
+  commentsOnly.candidates = [commentsOnly.candidates[0]];
+  commentsOnly.files = [{
+    path: "tests/items/fake.spec.ts", candidate_ids: ["case-api"],
+    source: "// test('fake', () => {});\n// request.get('/items');\n// test.step('Should pass', () => {});",
+  }];
+  commentsOnly.verification_results.tests = 1;
+  commentsOnly.verification_results.passed = 3;
+  refreshVerification(commentsOnly);
+  assert.match(validatePlaywrightImplementation(commentsOnly).errors.join("\n"), /executable test declaration required/);
+
+  const failed = await implementationFixture();
+  failed.verification_results.passed = 5;
+  failed.verification_results.failed = 1;
+  assert.equal(validatePlaywrightImplementation(failed).valid, true);
+  assert.equal(verificationOutcome(failed), "fail");
+  assert.deepEqual(implementationCompletionGaps(failed), []);
+});
+
 test("suite-level exclusions and focused tests are rejected", async () => {
   const cases = [
     ['test.describe.skip("When loading", () => {});', /skipped test requires an exclusion finding/],
@@ -210,12 +245,13 @@ test("suite-level exclusions and focused tests are rejected", async () => {
     summary: "Offline feed suite is blocked on a missing stub",
     source_change_approved: false,
   }];
-  assert.deepEqual(validatePlaywrightImplementation(excluded).errors, []);
+  assert.deepEqual(validatePlaywrightImplementation(refreshVerification(excluded)).errors, []);
 });
 
 test("reported test counts must cover every declared spec", async () => {
   const manifest = await implementationFixture();
-  manifest.verification_results = { tests: 1, repetitions: 3, retries: 0, passed: 3, failed: 0, flaky: 0 };
+  manifest.verification_results.tests = 1;
+  manifest.verification_results.passed = 3;
   assert.match(
     validatePlaywrightImplementation(manifest).errors.join("\n"),
     /\/verification_results\/tests: fewer executed tests than declared spec files/,
@@ -240,7 +276,7 @@ test("every file sits where its kind belongs", async () => {
   component.files[1].kind = "component-object";
   component.files[1].path = "tests/pom/items.component.ts";
   browserFile(component).ui_abstraction = "component-object";
-  assert.deepEqual(validatePlaywrightImplementation(component).errors, []);
+  assert.deepEqual(validatePlaywrightImplementation(refreshVerification(component)).errors, []);
 });
 
 test("a file that declares locators declares where they came from", async () => {
@@ -257,7 +293,7 @@ test("a file that declares locators declares where they came from", async () => 
 
   const inferred = await implementationFixture();
   inferred.files[1].locator_evidence = "inferred";
-  assert.deepEqual(validatePlaywrightImplementation(inferred).errors, []);
+  assert.deepEqual(validatePlaywrightImplementation(refreshVerification(inferred)).errors, []);
   assert.deepEqual(inferredLocatorFiles(inferred), ["tests/pom/items.page.ts"]);
   assert.deepEqual(inferredLocatorFiles(await implementationFixture()), []);
 });

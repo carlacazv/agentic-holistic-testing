@@ -90,7 +90,7 @@ Required for isolation and determinism:
 
 Configure HTML, JSON, and JUnit reports plus trace, screenshot, and video capture for failures. `test.step` boundaries must remain visible in the report and trace so a failure is attributable to its `Should`. Add CI integration using the verified public npm registry.
 
-Execute the approved suite at least three times with zero retries. Any failed repetition, retry-dependent pass, or inconsistent result across repetitions prevents `completed` status and is reported as evidence, never reclassified.
+Execute the approved suite at least three times with zero retries. Bind the runner report to the executed command and the checksum of the implementation sources. Preserve failures as product verification evidence. Flaky, skipped, missing, stale, or source-mismatched evidence prevents a conclusive verification result.
 
 ## Return
 
@@ -98,4 +98,4 @@ Return the approved TypeScript tests, fixtures, Playwright configuration, CI int
 
 Each manifest file entry declares its `kind` (`spec`, `page-object`, or `component-object`; `spec` when omitted), sits at the path its kind requires, and declares `locator_evidence` when it holds locators. Every spec covering a browser candidate also declares `ui_abstraction` as the page or component object it uses. The manifest declares at least one approved candidate, at least one spec, and a `verification_results.tests` count that is a positive integer covering every declared spec, so an empty or under-executed run cannot reach `completed`. `validatePlaywrightImplementation` enforces the structure, flake, and abstraction rules above and rejects the implementation before any artifact is written, so a deviation that is genuinely correct must be justified through a finding rather than by loosening the code: category `locator` covers a structural or positional selector, and category `exclusion` covers a skipped test.
 
-Return `blocked` for missing approval, environment, browser, credentials, or test data when no useful implementation can proceed. Return `partial` when a valid subset is implemented and every excluded candidate is explicit.
+Return `blocked` for missing approval, environment, browser, credentials, or test data when no useful implementation can proceed. Return `partial` when a valid subset is implemented and every excluded candidate is explicit. Keep workflow status separate from verification status: completed implementation work may correctly report failed product assertions.

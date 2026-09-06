@@ -15,7 +15,7 @@ function yamlString(value) {
   return JSON.stringify(value);
 }
 
-export const SKILL_TRACKS = Object.freeze(["pipeline", "audit"]);
+export const SKILL_TRACKS = Object.freeze(["pipeline", "audit", "orchestrator"]);
 
 export function validateSkillManifest(manifest) {
   if (manifest?.schema_version !== 1 || !Array.isArray(manifest.skills)) {
@@ -73,6 +73,9 @@ function pipelinePositions(skills) {
 }
 
 function sequencedDescription(skill, { positions, invocationName }) {
+  if (skill.track === "orchestrator") {
+    return `Optional workflow coordinator. ${skill.description}`;
+  }
   if (skill.track !== "pipeline") {
     return `Independent audit that runs against an authorized target environment and needs no plan. ${skill.description}`;
   }
@@ -91,6 +94,9 @@ function indexDocument(skills, { positions, invocationName, skillsPath }) {
   const audits = skills
     .filter((skill) => skill.track === "audit")
     .map((skill) => `- \`${invocationName(skill.id)}\` - ${skill.description}`);
+  const orchestrators = skills
+    .filter((skill) => skill.track === "orchestrator")
+    .map((skill) => `- \`${invocationName(skill.id)}\` - ${skill.description}`);
   return [
     "# Holistic QA skills",
     "",
@@ -107,6 +113,12 @@ function indexDocument(skills, { positions, invocationName, skillsPath }) {
     "These need an authorized target environment rather than a plan, and can run in any order, before or after the pipeline.",
     "",
     ...audits,
+    "",
+    "## Optional orchestration",
+    "",
+    "Use these when you want guidance across several skills. An explicit request for one QA skill stays scoped to that skill.",
+    "",
+    ...orchestrators,
     "",
     "## What every skill returns",
     "",
@@ -173,7 +185,7 @@ async function buildCodex(outputRoot) {
   return buildLayout(outputRoot, {
     provider: "codex",
     providerRoot: ".agents",
-    frontmatterName: (id) => `holistic-qa:${id}`,
+    frontmatterName: (id) => `holistic-qa-${id}`,
   });
 }
 

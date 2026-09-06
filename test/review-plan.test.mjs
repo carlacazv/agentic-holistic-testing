@@ -41,6 +41,18 @@ test("review rejects invalid after plans and untraceable fixes", async () => {
   assert.match(errors, /resolved finding requires/);
 });
 
+test("resolved findings require an actual plan change", async () => {
+  const review = await reviewFixture();
+  review.before = structuredClone(review.after);
+  review.modifications = [{
+    id: "mod-fake", finding_id: "finding-trace", operation: "update",
+    target: "missing-record", before: "a", after: "b", rationale: "Claimed change",
+  }];
+  const errors = reviewPlan(review).errors.join("\n");
+  assert.match(errors, /real change/);
+  assert.match(errors, /missing-record does not identify/);
+});
+
 test("review artifacts finalize with checksums", async (t) => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "holistic-qa-review-"));
   t.after(() => rm(workspace, { recursive: true, force: true }));

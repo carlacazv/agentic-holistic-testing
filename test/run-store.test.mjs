@@ -96,3 +96,17 @@ test("finalization rejects false completion and accepts explicit partial and blo
   });
   assert.equal(blocked.envelope.status, "blocked");
 });
+
+test("completed runs require artifacts and finalized IDs cannot be recreated", async (t) => {
+  const root = await workspace(t);
+  const empty = new RunStore({ workspace: root, runId: "run-empty-complete-01" });
+  await empty.initialize();
+  await assert.rejects(empty.finalize({ skill: "plan", status: "completed" }), /non-empty required artifact/);
+
+  const first = new RunStore({ workspace: root, runId: "run-finalized-identity-01" });
+  await first.initialize();
+  await first.writeArtifact("plan/plan.json", "{}", { type: "plan.document", mediaType: "application/json" });
+  await first.finalize({ skill: "plan", status: "completed", requiredArtifacts: ["plan/plan.json"] });
+  const duplicate = new RunStore({ workspace: root, runId: "run-finalized-identity-01" });
+  await assert.rejects(duplicate.initialize(), /already finalized/);
+});

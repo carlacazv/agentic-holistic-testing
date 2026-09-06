@@ -17,6 +17,8 @@
     "residual_risks": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
     "approvals": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
     "errors": { "type": "array", "items": { "$ref": "urn:holistic-qa:schema:v1:error" } },
-    "next_actions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+    "next_actions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "verification_status": { "enum": ["pass", "fail", "inconclusive", "not-run"] },
+    "release_recommendation": { "enum": ["ready", "conditional", "not-ready", "insufficient-evidence"] }
   }
 }

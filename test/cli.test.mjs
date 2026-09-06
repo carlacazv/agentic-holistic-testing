@@ -63,3 +63,17 @@ test("CLI installs a provider layout directly into a target directory", async (t
   assert.equal(run("install", "gemini", "--target", directory).status, 1);
   assert.equal(run("install", "codex", "--target", directory, "extra").status, 64);
 });
+
+test("CLI starts orchestrated and explicit skill cycles", async (t) => {
+  const orchestrated = run("cycle-init", "Assess", "checkout", "quality");
+  assert.equal(orchestrated.status, 0);
+  assert.equal(JSON.parse(orchestrated.stdout).invocation, "orchestrated");
+
+  const explicit = run("cycle-init", "Audit", "accessibility", "--skill", "accessibility");
+  const state = JSON.parse(explicit.stdout);
+  assert.deepEqual(state.selected_skills, ["accessibility"]);
+  const directory = await fixtureDirectory(t);
+  const stateFile = path.join(directory, "cycle.json");
+  await writeFile(stateFile, JSON.stringify(state));
+  assert.equal(JSON.parse(run("cycle-next", stateFile).stdout).skill, "accessibility");
+});

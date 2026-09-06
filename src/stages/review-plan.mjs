@@ -122,6 +122,19 @@ export function reviewPlan({ before, after, findings = [], modifications = [], m
     }
   }
 
+  const beforeChecksum = checksum(canonicalJson(before));
+  const afterChecksum = checksum(canonicalJson(after));
+  if (findings.some((finding) => finding.status === "resolved") && beforeChecksum === afterChecksum) {
+    errors.push("/modifications: resolved findings require a real change to the reviewed plan");
+  }
+  for (const [index, modification] of modifications.entries()) {
+    if (modification.target === "" || modification.target === undefined) continue;
+    const targetExists = PLAN_COLLECTIONS.some((collection) =>
+      collection === modification.target || identified(before[collection]).some((record) => record.id === modification.target) ||
+      identified(after[collection]).some((record) => record.id === modification.target));
+    if (!targetExists) errors.push(`/modifications/${index}/target: ${modification.target} does not identify a plan record or collection`);
+  }
+
   const beforeMetrics = planMetrics(before);
   const afterMetrics = planMetrics(after);
   for (const metric of [
@@ -159,7 +172,7 @@ export function reviewPlan({ before, after, findings = [], modifications = [], m
     after_validation_errors: afterValidation.errors,
     before_metrics: beforeMetrics,
     after_metrics: afterMetrics,
-    checksums: { before: checksum(canonicalJson(before)), after: checksum(canonicalJson(after)) },
+    checksums: { before: beforeChecksum, after: afterChecksum },
   };
 }
 

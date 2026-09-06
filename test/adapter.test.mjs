@@ -10,11 +10,11 @@ test("Codex adapter builds in a clean temporary home", async (t) => {
   t.after(() => rm(directory, { recursive: true, force: true }));
   const result = await buildAdapter("codex", directory);
   assert.equal(result.provider, "codex");
-  assert.equal(result.skills.length, 7);
+  assert.equal(result.skills.length, 9);
   const generated = new Map(result.skills.map((entry) => [entry.id, entry]));
-  assert.deepEqual([...generated.keys()].sort(), ["accessibility", "automation-strategy", "explore", "implement-playwright", "performance", "plan", "review-plan"]);
+  assert.deepEqual([...generated.keys()].sort(), ["accessibility", "automation-strategy", "cycle", "explore", "implement-playwright", "performance", "plan", "report", "review-plan"]);
   const skill = await readFile(path.join(directory, ".agents/skills/holistic-qa-plan/SKILL.md"), "utf8");
-  assert.match(skill, /name: holistic-qa:plan/);
+  assert.match(skill, /name: holistic-qa-plan/);
   assert.match(skill, new RegExp(generated.get("plan").source_checksum.replace(":", "\\:")));
   const written = JSON.parse(await readFile(path.join(directory, ".agents/.holistic-qa-manifest.json"), "utf8"));
   assert.deepEqual(written, result);
@@ -25,9 +25,9 @@ test("Claude Code adapter builds in a clean temporary home", async (t) => {
   t.after(() => rm(directory, { recursive: true, force: true }));
   const result = await buildAdapter("claude", directory);
   assert.equal(result.provider, "claude");
-  assert.equal(result.skills.length, 7);
+  assert.equal(result.skills.length, 9);
   const generated = new Map(result.skills.map((entry) => [entry.id, entry]));
-  assert.deepEqual([...generated.keys()].sort(), ["accessibility", "automation-strategy", "explore", "implement-playwright", "performance", "plan", "review-plan"]);
+  assert.deepEqual([...generated.keys()].sort(), ["accessibility", "automation-strategy", "cycle", "explore", "implement-playwright", "performance", "plan", "report", "review-plan"]);
   const skill = await readFile(path.join(directory, ".claude/skills/holistic-qa-plan/SKILL.md"), "utf8");
   assert.match(skill, /name: holistic-qa-plan/);
   assert.match(skill, new RegExp(generated.get("plan").source_checksum.replace(":", "\\:")));
@@ -72,6 +72,10 @@ test("generated skills carry their pipeline position and prerequisites", async (
   assert.match(audit, /^ {2}track: audit$/m);
   assert.doesNotMatch(audit, /^ {2}requires:/m);
 
+  const coordinator = await read("cycle");
+  assert.match(coordinator, /description: "Optional workflow coordinator\./);
+  assert.match(coordinator, /^ {2}track: orchestrator$/m);
+
   const manifestEntry = result.skills.find((skill) => skill.id === "review-plan");
   assert.deepEqual(manifestEntry.requires, ["plan"]);
   assert.equal(manifestEntry.track, "pipeline");
@@ -84,9 +88,11 @@ test("each provider ships an index naming the order in its own invocation syntax
   await buildAdapter("claude", directory);
 
   const codexIndex = await readFile(path.join(directory, ".agents/holistic-qa-README.md"), "utf8");
-  assert.match(codexIndex, /1\. `holistic-qa:plan`/);
-  assert.match(codexIndex, /4\. `holistic-qa:implement-playwright`/);
+  assert.match(codexIndex, /1\. `holistic-qa-plan`/);
+  assert.match(codexIndex, /4\. `holistic-qa-implement-playwright`/);
   assert.match(codexIndex, /## Independent audits/);
+  assert.match(codexIndex, /## Optional orchestration/);
+  assert.match(codexIndex, /`holistic-qa-cycle`/);
   assert.match(codexIndex, /`\.agents\/skills\/`/);
 
   const claudeIndex = await readFile(path.join(directory, ".claude/holistic-qa-README.md"), "utf8");
@@ -114,7 +120,7 @@ test("a manifest with an inconsistent prerequisite chain is rejected", () => {
   );
   assert.throws(
     () => validateSkillManifest(manifest([skill("plan", "queue", [])])),
-    /track must be one of pipeline, audit/,
+    /track must be one of pipeline, audit, orchestrator/,
   );
   assert.throws(
     () => validateSkillManifest(manifest([
