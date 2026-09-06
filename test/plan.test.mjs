@@ -54,6 +54,27 @@ test("seeded omissions identify exact records", async () => {
   assert.match(errors, /minimum-age is missing above/);
 });
 
+test("empty and oracle-free plans cannot report complete coverage", async () => {
+  const source = await fixture();
+  const missingOracle = structuredClone(source);
+  delete missingOracle.requirements[0].acceptance_criteria;
+  delete missingOracle.test_steps[0].expected;
+  delete missingOracle.test_steps[0].action;
+  const missingErrors = validatePlanBundle(missingOracle).errors.join("\n");
+  assert.match(missingErrors, /acceptance_criteria: required/);
+  assert.match(missingErrors, /action: required/);
+  assert.match(missingErrors, /expected: required/);
+
+  const empty = {
+    requirements: [], risks: [], test_cases: [], test_steps: [],
+    requirement_test_links: [], risk_test_links: [], test_data_prerequisites: [],
+    heuristics: source.heuristics,
+  };
+  assert.equal(validatePlanBundle(empty).valid, false);
+  assert.equal(planMetrics(empty).requirements_accounted_percent, null);
+  assert.equal(planMetrics(empty).risks_test_linked_percent, null);
+});
+
 test("plan bundle renders checksum-valid artifacts and envelope", async (t) => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "holistic-qa-plan-"));
   t.after(() => rm(workspace, { recursive: true, force: true }));

@@ -72,6 +72,14 @@ export class RunStore {
     await mkdir(this.workspace, { recursive: true });
     const workspaceRoot = await realpath(this.workspace);
     this.durableDirectory = await ensureDirectoryTree(workspaceRoot, ["qa", "runs", this.runId]);
+    for (const controlFile of CONTROL_FILES) {
+      try {
+        await lstat(path.join(this.durableDirectory, controlFile));
+        throw new Error(`Run ${this.runId} is already finalized; resume or fork it explicitly`);
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+    }
     this.rawDirectory = await ensureDirectoryTree(workspaceRoot, ["test-results", this.runId]);
     this.initialized = true;
     return {
@@ -166,6 +174,8 @@ export class RunStore {
     errors = [],
     nextActions = [],
     requiredArtifacts = [],
+    verificationStatus,
+    releaseRecommendation,
   }) {
     this.assertInitialized();
     const artifacts = [...this.artifacts.values()].sort((left, right) => left.path.localeCompare(right.path));
@@ -173,6 +183,9 @@ export class RunStore {
     const fileValidation = await validateArtifactFiles(this.durableDirectory, index);
     if (!fileValidation.valid) throw new TypeError(fileValidation.errors.join("; "));
 
+    if (runStatus === "completed" && requiredArtifacts.length === 0) {
+      throw new TypeError("Completed runs require a non-empty required artifact contract");
+    }
     const missing = requiredArtifacts.filter(
       (requiredPath) => !this.artifacts.has(requiredPath) || this.artifacts.get(requiredPath).generation_status !== "generated",
     );
@@ -193,6 +206,8 @@ export class RunStore {
       approvals: sortedUnique(approvals),
       errors,
       next_actions: sortedUnique(nextActions),
+      ...(verificationStatus === undefined ? {} : { verification_status: verificationStatus }),
+      ...(releaseRecommendation === undefined ? {} : { release_recommendation: releaseRecommendation }),
     };
     const envelopeErrors = validateReturnEnvelope(envelope);
     if (envelopeErrors.length > 0) throw new TypeError(envelopeErrors.join("; "));

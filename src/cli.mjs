@@ -8,6 +8,7 @@ import { resolveBrowserCapability } from "./core/browser.mjs";
 import { createRunId, validateRunId } from "./core/ids.mjs";
 import { evaluateCapability } from "./core/permissions.mjs";
 import { validateDocument } from "./core/validation.mjs";
+import { createCycleState, nextCycleStep, validateCycleState } from "./workflows/cycle.mjs";
 
 async function readJson(filePath) {
   return JSON.parse(await readFile(path.resolve(filePath), "utf8"));
@@ -27,6 +28,8 @@ function usage() {
       "permission <execution-context.json> <capability.json>",
       "browser <availability.json>",
       "run-id [candidate]",
+      "cycle-init <goal> [--skill <skill>]",
+      "cycle-next <cycle-state.json>",
     ],
   };
 }
@@ -78,6 +81,20 @@ async function main([command, ...args]) {
   if (command === "run-id" && args.length <= 1) {
     const runId = args.length === 0 ? createRunId() : validateRunId(args[0]);
     output({ run_id: runId });
+    return 0;
+  }
+  if (command === "cycle-init" && args.length >= 1) {
+    const skillIndex = args.indexOf("--skill");
+    const explicitSkill = skillIndex === -1 ? null : args[skillIndex + 1];
+    const goalParts = skillIndex === -1 ? args : args.slice(0, skillIndex);
+    output(createCycleState({ goal: goalParts.join(" "), explicitSkill }));
+    return 0;
+  }
+  if (command === "cycle-next" && args.length === 1) {
+    const state = await readJson(args[0]);
+    const validation = validateCycleState(state);
+    if (!validation.valid) { output(validation); return 1; }
+    output(nextCycleStep(state));
     return 0;
   }
   output({ error: "invalid_arguments", usage: usage() });

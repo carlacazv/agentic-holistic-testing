@@ -49,6 +49,13 @@ in their change files.
   the user explicitly requests and approves them.
 - Keep tests focused on observable behavior and update documentation when the
   supported workflow changes.
+- User instructions take precedence over skill guidance. Complete authorized,
+  reversible work before asking a question; ask only when an answer can
+  materially change behavior, scope, permissions, or the result.
+- An explicit request for one QA skill stays scoped to that skill and its real
+  prerequisites. Do not expand it into the full quality cycle.
+- Calibrate verification to the changed behavior. Run required and risk-based
+  checks once; repeat or broaden them only to resolve an observed risk.
 
 ## Repository workflow
 

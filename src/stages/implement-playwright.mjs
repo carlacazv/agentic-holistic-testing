@@ -1,5 +1,6 @@
 import { canonicalJson } from "../core/canonical.mjs";
 import { serializeCsv } from "../core/csv.mjs";
+import { checksum } from "../core/checksum.mjs";
 
 const accessibleLocator = /getBy(?:Role|Label|Placeholder|Text|AltText|Title|TestId)\s*\(/;
 const webFirstAssertion = /expect\s*\([\s\S]*?\)\s*\.\s*(?:not\s*\.)?to(?:BeVisible|BeHidden|BeEnabled|BeDisabled|BeChecked|HaveText|ContainText|HaveValue|HaveCount|HaveURL|HaveTitle)\s*\(/;
@@ -23,6 +24,60 @@ export const UI_ABSTRACTIONS = Object.freeze(["page-object", "component-object"]
 export const LOCATOR_EVIDENCE = Object.freeze(["live-snapshot", "inferred"]);
 
 const OBJECT_KINDS = Object.freeze(["page-object", "component-object"]);
+const CHECKSUM_PATTERN = /^sha256:[a-f0-9]{64}$/;
+
+function executableSource(source) {
+  let result = "";
+  let quote = null;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (lineComment) {
+      if (character === "\n") { lineComment = false; result += character; }
+      continue;
+    }
+    if (blockComment) {
+      if (character === "*" && next === "/") { blockComment = false; index += 1; }
+      continue;
+    }
+    if (quote !== null) {
+      result += character;
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (["'", '"', "`"].includes(character)) { quote = character; result += character; continue; }
+    if (character === "/" && next === "/") { lineComment = true; index += 1; continue; }
+    if (character === "/" && next === "*") { blockComment = true; index += 1; continue; }
+    result += character;
+  }
+  return result;
+}
+
+export function implementationSourceChecksum(manifest) {
+  const sources = (manifest.files ?? [])
+    .map(({ path: filePath, kind = "spec", source = "" }) => ({ path: filePath, kind, source }))
+    .sort((left, right) => left.path.localeCompare(right.path));
+  return checksum(canonicalJson(sources));
+}
+
+export function verificationOutcome(manifest) {
+  const result = manifest.verification_results ?? {};
+  if ((result.failed ?? 0) > 0) return "fail";
+  if ((result.flaky ?? 0) > 0 || (result.skipped ?? 0) > 0) return "inconclusive";
+  return (result.passed ?? 0) > 0 ? "pass" : "not-run";
+}
+
+export function implementationCompletionGaps(manifest) {
+  const outcome = verificationOutcome(manifest);
+  if (outcome === "inconclusive") return ["Playwright verification contains flaky or skipped outcomes"];
+  if (outcome === "not-run") return ["Playwright verification did not execute tests"];
+  return [];
+}
 
 function titlesOf(source, pattern) {
   return [...source.matchAll(pattern)].map((match) => match[2]);
@@ -75,6 +130,7 @@ export function validatePlaywrightImplementation(manifest) {
       errors.push(`/files/${index}/source: required`);
       continue;
     }
+    const activeSource = executableSource(file.source);
     if (
       (accessibleLocator.test(file.source) || structuralLocator.test(file.source)) &&
       !LOCATOR_EVIDENCE.includes(file.locator_evidence)
@@ -82,42 +138,43 @@ export function validatePlaywrightImplementation(manifest) {
       errors.push(`/files/${file.path}/locator_evidence: expected one of ${LOCATOR_EVIDENCE.join(", ")}`);
     }
 
-    if (fixedWait.test(file.source)) errors.push(`/files/${file.path}: fixed waits are prohibited`);
-    if (networkIdle.test(file.source)) {
+    if (fixedWait.test(activeSource)) errors.push(`/files/${file.path}: fixed waits are prohibited`);
+    if (networkIdle.test(activeSource)) {
       errors.push(`/files/${file.path}: networkidle waits are prohibited; wait for the specific element or response`);
     }
-    if (elementHandle.test(file.source)) {
+    if (elementHandle.test(activeSource)) {
       errors.push(`/files/${file.path}: element handles are prohibited; use locators that re-query`);
     }
-    if (sampledAssertion.test(file.source)) {
+    if (sampledAssertion.test(activeSource)) {
       errors.push(`/files/${file.path}: sampled state assertions are prohibited; use a retrying web-first assertion`);
     }
-    if (positionalLocator.test(file.source) && !hasFinding(manifest, "locator", file.path)) {
+    if (positionalLocator.test(activeSource) && !hasFinding(manifest, "locator", file.path)) {
       errors.push(`/files/${file.path}: positional locator requires a finding`);
     }
-    if (testExclusion.test(file.source) && !hasFinding(manifest, "exclusion", file.path)) {
+    if (testExclusion.test(activeSource) && !hasFinding(manifest, "exclusion", file.path)) {
       errors.push(`/files/${file.path}: skipped test requires an exclusion finding`);
     }
-    if (focusedTest.test(file.source)) {
+    if (focusedTest.test(activeSource)) {
       errors.push(`/files/${file.path}: focused tests are prohibited; a focused run drops every other test`);
     }
 
     if (OBJECT_KINDS.includes(kind)) {
-      if (/\bexpect\s*\(/.test(file.source)) {
+      if (/\bexpect\s*\(/.test(activeSource)) {
         errors.push(`/files/${file.path}: a ${kind} must not contain assertions`);
       }
-      if (/\btest\s*(?:\.\w+)?\s*\(/.test(file.source)) {
+      if (/\btest\s*(?:\.\w+)?\s*\(/.test(activeSource)) {
         errors.push(`/files/${file.path}: a ${kind} must not declare tests`);
       }
       continue;
     }
 
-    for (const title of titlesOf(file.source, describeTitles)) {
+    if (!/\btest\s*\(/.test(activeSource)) errors.push(`/files/${file.path}: executable test declaration required`);
+    for (const title of titlesOf(activeSource, describeTitles)) {
       if (!/^(?:Given|When) \S/.test(title)) {
         errors.push(`/files/${file.path}: describe title must start with "Given " or "When ": ${title}`);
       }
     }
-    const steps = titlesOf(file.source, stepTitles);
+    const steps = titlesOf(activeSource, stepTitles);
     if (steps.length === 0) errors.push(`/files/${file.path}: assertions must be wrapped in test.step`);
     for (const title of steps) {
       if (!/^Should \S/.test(title)) {
@@ -135,9 +192,9 @@ export function validatePlaywrightImplementation(manifest) {
     const coversApi = fileCandidates.some((candidate) => candidate?.recommended_level === "api");
 
     if (coversBrowser) {
-      const reachable = `${file.source}\n${objectSource}`;
+      const reachable = `${activeSource}\n${objectSource}`;
       if (!accessibleLocator.test(reachable)) errors.push(`/files/${file.path}: accessible locator required`);
-      if (!webFirstAssertion.test(file.source)) errors.push(`/files/${file.path}: web-first assertion required`);
+      if (!webFirstAssertion.test(activeSource)) errors.push(`/files/${file.path}: web-first assertion required`);
       if (structuralLocator.test(reachable) && !hasFinding(manifest, "locator", file.path)) {
         errors.push(`/files/${file.path}: structural locator requires a finding`);
       }
@@ -149,7 +206,7 @@ export function validatePlaywrightImplementation(manifest) {
       }
     }
 
-    if (coversApi && !/\brequest\s*\./.test(file.source)) {
+    if (coversApi && !/\brequest\s*\./.test(activeSource)) {
       errors.push(`/files/${file.path}: API candidate requires Playwright request context`);
     }
   }
@@ -166,13 +223,27 @@ export function validatePlaywrightImplementation(manifest) {
   const verification = manifest.verification_results ?? {};
   if (!Number.isInteger(verification.repetitions) || verification.repetitions < 3) errors.push("/verification_results/repetitions: expected at least 3");
   if (verification.retries !== 0) errors.push("/verification_results/retries: expected 0");
-  if (verification.failed !== 0 || verification.flaky !== 0) errors.push("/verification_results: failures or flaky outcomes are not accepted");
   if (!Number.isInteger(verification.tests) || verification.tests < 1) {
     errors.push("/verification_results/tests: expected a positive integer");
   } else if (verification.tests < specFiles.length) {
     errors.push("/verification_results/tests: fewer executed tests than declared spec files");
   }
-  if (verification.passed !== verification.tests * verification.repetitions) errors.push("/verification_results/passed: inconsistent total");
+  for (const name of ["passed", "failed", "flaky", "skipped"]) {
+    if (verification[name] !== undefined && (!Number.isInteger(verification[name]) || verification[name] < 0)) {
+      errors.push(`/verification_results/${name}: expected a non-negative integer`);
+    }
+  }
+  const observed = (verification.passed ?? 0) + (verification.failed ?? 0) + (verification.skipped ?? 0);
+  if (observed !== verification.tests * verification.repetitions) errors.push("/verification_results: outcome totals are inconsistent");
+  if (verification.executed_command !== manifest.ci_integration?.command) {
+    errors.push("/verification_results/executed_command: must match the declared CI command");
+  }
+  if (!CHECKSUM_PATTERN.test(verification.report_checksum ?? "")) {
+    errors.push("/verification_results/report_checksum: verified runner evidence is required");
+  }
+  if (verification.source_checksum !== implementationSourceChecksum(manifest)) {
+    errors.push("/verification_results/source_checksum: does not match the implementation sources");
+  }
   return { valid: errors.length === 0, errors };
 }
 

@@ -1,6 +1,6 @@
 # Holistic QA Review Plan
 
-Independently review an existing `holistic-qa:plan` bundle and produce a measurably improved, fully auditable bundle. Do not execute tests, alter product requirements, modify application source, or publish findings externally.
+Independently review an existing `holistic-qa-plan` bundle and produce a measurably improved, fully auditable bundle. Do not execute tests, alter product requirements, modify application source, or publish findings externally.
 
 ## Inputs and integrity gate
 
@@ -23,6 +23,8 @@ Declare the chosen outcome as `mode`: `apply` or `complement`. The mode decides 
 Assess requirement and risk traceability, impact × likelihood scoring, priority boundaries, technique fit, equivalence classes, strict three-point boundaries, decision permutations, states and transitions, scenarios, pairwise rationale, error guessing, SFDIPOT, FEW HICCUPPS, test-data prerequisites, clarity, duplication, executability, and explicit dispositions.
 
 Record each finding with stable ID, severity, target record, evidence, status, and unblocker when open. Do not silently fix a finding: every change must record operation, target, before value, after value, rationale, and linked finding ID.
+
+A resolved finding must correspond to a real canonical before/after change or an explicit evidence-based resolution. Reject nonexistent targets and an unchanged bundle that claims modification.
 
 Validate the improved plan using the upstream plan contract. Calculate before/after metrics and canonical bundle checksums. Reject metric regression and do not claim improvement for cosmetic edits. Coverage that leaves the plan is a change like any other: every test case or step present before the review and absent after it requires a `remove` or `merge` modification naming that record ID, so a smaller plan is a recorded decision rather than a silent loss.
 

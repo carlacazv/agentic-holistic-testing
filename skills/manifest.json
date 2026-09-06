@@ -42,6 +42,18 @@
       "track": "audit",
       "requires": [],
       "description": "Evaluate declared performance budgets or establish a repeatable Lighthouse and API timing baseline without inventing an SLA."
+    },
+    {
+      "id": "report",
+      "track": "orchestrator",
+      "requires": [],
+      "description": "Combine checksum-valid QA runs into an evidence-linked quality and release recommendation."
+    },
+    {
+      "id": "cycle",
+      "track": "orchestrator",
+      "requires": [],
+      "description": "Guide a complete quality workflow from a user goal while keeping every QA skill independently callable."
     }
   ]
 }

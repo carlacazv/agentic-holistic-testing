@@ -33,6 +33,12 @@ test("axe-only and unlinked failures cannot claim completion", () => {
   assert.match(validateAccessibilityAudit(failed).errors.join("\n"), /requires evidence and linked defect/);
 });
 
+test("manual pass claims require valid evidence", () => {
+  const unsupported = fixture();
+  unsupported.manual_checks[0].evidence_ids = [];
+  assert.match(validateAccessibilityAudit(unsupported).errors.join("\n"), /pass requires evidence/);
+});
+
 test("accessibility artifacts finalize", async (t) => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "holistic-qa-a11y-"));
   t.after(() => rm(workspace, { recursive: true, force: true }));
