@@ -16,5 +16,5 @@
 ## 3. Verification
 
 - [x] 3.1 Add regressions for every reproduced false-success path.
-- [ ] 3.2 Run focused tests, the full Node test suite, schema validation, and both adapter checks.
+- [x] 3.2 Run focused tests, the full Node test suite, schema validation, and both adapter checks.
 - [x] 3.3 Update README and skill instructions.

@@ -1,9 +1,4 @@
-# report-skill Specification
-
-## Purpose
-Combines valid QA runs into an evidence-linked quality recommendation.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Separate result axes
 The report SHALL distinguish workflow completion, verification outcome, and release recommendation.
@@ -18,4 +13,3 @@ Every report SHALL name its source run IDs, evidence, gaps, residual risks, and 
 #### Scenario: Required work is blocked
 - **WHEN** a source run is blocked or partial
 - **THEN** the report recommends insufficient-evidence and names the gap
-
