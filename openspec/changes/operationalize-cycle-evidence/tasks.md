@@ -11,4 +11,4 @@
 ## 3. Verification
 
 - [x] 3.1 Exercise installation and cycle resume from a clean consumer repository.
-- [ ] 3.2 Run the complete validation gate in CI.
+- [x] 3.2 Run the complete validation gate in CI.
