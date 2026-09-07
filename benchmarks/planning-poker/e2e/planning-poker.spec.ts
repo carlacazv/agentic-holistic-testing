@@ -1,0 +1,62 @@
+import { expect, test } from '@playwright/test'
+
+test('critical two-user journey preserves privacy, consensus, and export', async ({ browser }) => {
+  const hostContext = await browser.newContext()
+  const participantContext = await browser.newContext()
+  const host = await hostContext.newPage()
+  const participant = await participantContext.newPage()
+
+  await host.goto('/')
+  await host.getByLabel('Seu nome').fill('Carla')
+  await host.getByLabel('Senha da sala').fill('qa1234')
+  await host.getByRole('button', { name: 'Criar sala', exact: true }).click()
+  await expect(host.getByText('1 online')).toBeVisible()
+  const code = (await host.getByTitle('Copiar código da sala').textContent())!.trim()
+
+  await participant.goto('/')
+  await participant.getByRole('button', { name: 'Entrar com código' }).click()
+  await participant.getByLabel('Código da sala').fill(code)
+  await participant.getByLabel('Seu nome').fill('Leandro')
+  await participant.getByRole('button', { name: 'Entrar na sala' }).click()
+  await expect(host.getByText('2 online')).toBeVisible()
+  await expect(participant.getByText('2 online')).toBeVisible()
+
+  await host.getByRole('button', { name: '+ Novo story' }).click()
+  await host.getByPlaceholder('Título do story').fill('Checkout seguro')
+  await host.getByPlaceholder('Descrição / critérios de aceite (opcional)').fill('Não expor votos antes da revelação')
+  await host.getByRole('button', { name: 'Adicionar' }).click()
+  await expect(participant.getByText('Checkout seguro')).toBeVisible()
+  await host.getByRole('button', { name: 'Estimar' }).click()
+
+  await host.getByRole('button', { name: '5', exact: true }).click()
+  await expect(participant.getByText('1 de 2 escolheram')).toBeVisible()
+  await expect(participant.getByText('Cartas reveladas')).toHaveCount(0)
+  await participant.getByRole('button', { name: '8', exact: true }).click()
+  await expect(host.getByText('Cartas reveladas')).toBeVisible()
+  await expect(participant.getByText('Cartas reveladas')).toBeVisible()
+
+  const consensus = host.getByRole('heading', { name: 'Definir consenso final' }).locator('..')
+  await consensus.getByRole('button', { name: '8', exact: true }).click()
+  await consensus.getByRole('button', { name: 'Salvar consenso' }).click()
+  await host.getByRole('button', { name: 'Resumo da sessão' }).click()
+  await expect(host.getByRole('cell', { name: '8', exact: true })).toBeVisible()
+  const downloadPromise = host.waitForEvent('download')
+  await host.getByRole('button', { name: /Exportar CSV/ }).click()
+  expect((await downloadPromise).suggestedFilename()).toMatch(/\.csv$/)
+
+  await hostContext.close()
+  await participantContext.close()
+})
+
+test('password minimum accepts the exact boundary and valid neighbor', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Seu nome').fill('Boundary QA')
+  const password = page.getByLabel('Senha da sala')
+  const submit = page.getByRole('button', { name: 'Criar sala', exact: true })
+  await password.fill('12345')
+  await expect(submit).toBeDisabled()
+  await password.fill('123456')
+  await expect(submit).toBeEnabled()
+  await password.fill('1234567')
+  await expect(submit).toBeEnabled()
+})

@@ -1,0 +1,64 @@
+name: Planning Poker benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'benchmarks/planning-poker/**'
+      - '.github/workflows/planning-poker-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout benchmark
+        uses: actions/checkout@v4
+        with:
+          path: agent
+      - name: Checkout Planning Poker subject
+        uses: actions/checkout@v4
+        with:
+          repository: ljeronimodarocha/planer-poker
+          path: subject
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: subject/package-lock.json
+      - name: Install subject and benchmark dependencies
+        working-directory: subject
+        run: |
+          npm ci
+          npm install --no-save @playwright/test@1.62.1
+      - name: Install Chromium
+        working-directory: subject
+        run: npx playwright install --with-deps chromium
+      - name: Apply benchmark
+        run: |
+          cp agent/benchmarks/planning-poker/playwright.config.ts subject/playwright.config.ts
+          mkdir -p subject/e2e
+          cp agent/benchmarks/planning-poker/e2e/planning-poker.spec.ts subject/e2e/planning-poker.spec.ts
+      - name: Generate Prisma client
+        working-directory: subject
+        env:
+          CHECKPOINT_DISABLE: '1'
+        run: npx prisma generate --schema server/prisma/schema.prisma
+      - name: Run browser benchmark
+        working-directory: subject
+        env:
+          CHECKPOINT_DISABLE: '1'
+        run: npx playwright test
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planning-poker-benchmark-evidence
+          path: |
+            subject/test-results
+            subject/playwright-report
+          if-no-files-found: warn
