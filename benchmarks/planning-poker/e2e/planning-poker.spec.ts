@@ -9,7 +9,7 @@ test('critical two-user journey preserves privacy, consensus, and export', async
   await host.goto('/')
   await host.getByLabel('Seu nome').fill('Carla')
   await host.getByLabel('Senha da sala').fill('qa1234')
-  await host.getByRole('button', { name: 'Criar sala', exact: true }).click()
+  await host.locator('form').getByRole('button', { name: 'Criar sala', exact: true }).click()
   await expect(host.getByText('1 online')).toBeVisible()
   const code = (await host.getByTitle('Copiar código da sala').textContent())!.trim()
 
@@ -52,7 +52,7 @@ test('password minimum accepts the exact boundary and valid neighbor', async ({ 
   await page.goto('/')
   await page.getByLabel('Seu nome').fill('Boundary QA')
   const password = page.getByLabel('Senha da sala')
-  const submit = page.getByRole('button', { name: 'Criar sala', exact: true })
+  const submit = page.locator('form').getByRole('button', { name: 'Criar sala', exact: true })
   await password.fill('12345')
   await expect(submit).toBeDisabled()
   await password.fill('123456')
