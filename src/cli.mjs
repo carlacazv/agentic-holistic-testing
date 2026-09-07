@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildAdapter } from "../scripts/build-adapter.mjs";
 import { canonicalJson } from "./core/canonical.mjs";
@@ -23,6 +23,7 @@ function output(value) {
 async function writeJson(filePath, value) {
   const target = path.resolve(filePath);
   const temporary = `${target}.${process.pid}.tmp`;
+  await mkdir(path.dirname(target), { recursive: true });
   await writeFile(temporary, `${canonicalJson(value)}\n`, "utf8");
   await rename(temporary, target);
   return target;
@@ -129,7 +130,24 @@ async function main([command, ...args]) {
     return 0;
   }
   if (command === "cycle-complete" && args.length === 3) {
-    const state = completeCycleStep(await readJson(args[0]), { skill: args[1], runId: args[2] });
+    const runId = validateRunId(args[2]);
+    const runDirectory = path.resolve("qa", "runs", runId);
+    const runValidation = await validateRunDirectory(runDirectory);
+    if (!runValidation.valid) {
+      output({ error: "invalid_run", run_id: runId, errors: runValidation.errors });
+      return 1;
+    }
+    const envelope = await readJson(path.join(runDirectory, "return-envelope.json"));
+    if (envelope.run_id !== runId || envelope.skill !== args[1]) {
+      output({
+        error: "run_mismatch",
+        run_id: runId,
+        expected_skill: args[1],
+        actual_skill: envelope.skill ?? null,
+      });
+      return 1;
+    }
+    const state = completeCycleStep(await readJson(args[0]), { skill: args[1], runId });
     output({ state_file: await writeJson(args[0], state), state, next: nextCycleStep(state) });
     return 0;
   }
