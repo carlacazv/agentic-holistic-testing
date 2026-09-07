@@ -77,3 +77,23 @@ test("CLI starts orchestrated and explicit skill cycles", async (t) => {
   await writeFile(stateFile, JSON.stringify(state));
   assert.equal(JSON.parse(run("cycle-next", stateFile).stdout).skill, "accessibility");
 });
+
+test("CLI persists, resumes, completes, and summarizes a cycle", async (t) => {
+  const directory = await fixtureDirectory(t);
+  const stateFile = path.join(directory, "cycle.json");
+  const start = run("cycle-start", "Assess", "checkout", "--output", stateFile, "--skill", "accessibility");
+  assert.equal(start.status, 0);
+  assert.equal(JSON.parse(run("cycle-resume", stateFile).stdout).next.skill, "accessibility");
+  assert.equal(run("cycle-complete", stateFile, "accessibility", "run-a11y-0001").status, 0);
+  const summary = JSON.parse(run("cycle-summary", stateFile).stdout);
+  assert.equal(summary.status, "completed");
+  assert.equal(summary.completed, 1);
+});
+
+test("doctor diagnoses a consuming workspace", async (t) => {
+  const directory = await fixtureDirectory(t);
+  await writeFile(path.join(directory, "package.json"), "{}\n");
+  const result = run("doctor", directory);
+  assert.equal(result.status, 0);
+  assert.ok(["pass", "warn"].includes(JSON.parse(result.stdout).status));
+});

@@ -10,6 +10,7 @@ import {
   implementationCompletionGaps,
   implementationSourceChecksum,
   validatePlaywrightImplementation,
+  verificationFromPlaywrightReport,
   verificationOutcome,
   writePlaywrightImplementation,
 } from "../src/stages/implement-playwright.mjs";
@@ -46,6 +47,7 @@ async function implementationFixture() {
       tests: 2, repetitions: 3, retries: 0, passed: 6, failed: 0, flaky: 0, skipped: 0,
       executed_command: "npm run test:playwright:fixture",
       report_checksum: `sha256:${"1".repeat(64)}`,
+      evidence_source: "playwright-json",
     }
   };
   manifest.verification_results.source_checksum = implementationSourceChecksum(manifest);
@@ -61,8 +63,31 @@ function browserFile(manifest) {
   return manifest.files.find((file) => file.path === "tests/items/browser.spec.ts");
 }
 
+function reporterFixture(browserStatuses = ["passed", "passed", "passed"]) {
+  const testEntry = (status) => ({ projectName: "chromium", results: [{ status }] });
+  return {
+    config: { retries: 0 },
+    suites: [{ title: "items", specs: [
+      { file: "tests/items/api.spec.ts", title: "api", tests: [testEntry("passed"), testEntry("passed"), testEntry("passed")] },
+      { file: "tests/items/browser.spec.ts", title: "browser", tests: browserStatuses.map(testEntry) },
+    ] }],
+  };
+}
+
 test("approved fixture implementation satisfies quality gates", async () => {
   assert.deepEqual(validatePlaywrightImplementation(await implementationFixture()), { valid: true, errors: [] });
+});
+
+test("Playwright JSON reporter output deterministically creates verification evidence", async () => {
+  const manifest = await implementationFixture();
+  const report = reporterFixture(["passed", "failed", "passed"]);
+  const imported = verificationFromPlaywrightReport(manifest, report, manifest.ci_integration.command);
+  assert.equal(imported.tests, 2);
+  assert.equal(imported.repetitions, 3);
+  assert.equal(imported.failed, 1);
+  assert.equal(imported.evidence_source, "playwright-json");
+  manifest.verification_results = imported;
+  assert.equal(validatePlaywrightImplementation(manifest).valid, true);
 });
 
 test("unapproved, sleep-based, and inaccessible implementations fail", async () => {
@@ -183,9 +208,17 @@ test("implementation evidence finalizes", async (t) => {
   t.after(() => rm(workspace, { recursive: true, force: true }));
   const store = new RunStore({ workspace, runId: "run-playwright-0001" });
   await store.initialize();
-  assert.equal((await writePlaywrightImplementation(store, await implementationFixture())).length, 3);
+  assert.equal((await writePlaywrightImplementation(store, await implementationFixture(), { runnerReport: reporterFixture() })).length, 3);
   const result = await store.finalize({ skill: "implement-playwright", status: "completed", requiredArtifacts: PLAYWRIGHT_REQUIRED_ARTIFACTS });
   assert.equal(result.envelope.status, "completed");
+});
+
+test("implementation writer rejects hand-authored verification without raw runner evidence", async (t) => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "holistic-qa-playwright-"));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  const store = new RunStore({ workspace, runId: "run-playwright-no-report-0001" });
+  await store.initialize();
+  await assert.rejects(writePlaywrightImplementation(store, await implementationFixture()), /runner report is required/);
 });
 
 test("an empty implementation cannot claim completion", () => {

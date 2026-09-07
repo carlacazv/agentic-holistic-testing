@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildAdapter } from "../scripts/build-adapter.mjs";
 import { canonicalJson } from "./core/canonical.mjs";
@@ -8,7 +8,9 @@ import { resolveBrowserCapability } from "./core/browser.mjs";
 import { createRunId, validateRunId } from "./core/ids.mjs";
 import { evaluateCapability } from "./core/permissions.mjs";
 import { validateDocument } from "./core/validation.mjs";
-import { createCycleState, nextCycleStep, validateCycleState } from "./workflows/cycle.mjs";
+import { diagnoseWorkspace } from "./core/doctor.mjs";
+import { verificationFromPlaywrightReport } from "./stages/implement-playwright.mjs";
+import { completeCycleStep, createCycleState, nextCycleStep, summarizeCycle, validateCycleState } from "./workflows/cycle.mjs";
 
 async function readJson(filePath) {
   return JSON.parse(await readFile(path.resolve(filePath), "utf8"));
@@ -16,6 +18,14 @@ async function readJson(filePath) {
 
 function output(value) {
   process.stdout.write(`${canonicalJson(value)}\n`);
+}
+
+async function writeJson(filePath, value) {
+  const target = path.resolve(filePath);
+  const temporary = `${target}.${process.pid}.tmp`;
+  await writeFile(temporary, `${canonicalJson(value)}\n`, "utf8");
+  await rename(temporary, target);
+  return target;
 }
 
 function usage() {
@@ -30,6 +40,12 @@ function usage() {
       "run-id [candidate]",
       "cycle-init <goal> [--skill <skill>]",
       "cycle-next <cycle-state.json>",
+      "cycle-start <goal> --output <cycle-state.json> [--skill <skill>]",
+      "cycle-resume <cycle-state.json>",
+      "cycle-complete <cycle-state.json> <skill> <run-id>",
+      "cycle-summary <cycle-state.json>",
+      "doctor [workspace]",
+      "import-playwright <manifest.json> <playwright-report.json> <executed-command>",
     ],
   };
 }
@@ -95,6 +111,34 @@ async function main([command, ...args]) {
     const validation = validateCycleState(state);
     if (!validation.valid) { output(validation); return 1; }
     output(nextCycleStep(state));
+    return 0;
+  }
+  if (command === "cycle-start") {
+    const outputIndex = args.indexOf("--output");
+    const skillIndex = args.indexOf("--skill");
+    if (outputIndex < 1 || !args[outputIndex + 1]) { output({ error: "invalid_arguments", usage: usage() }); return 64; }
+    const optionIndexes = [outputIndex, skillIndex].filter((index) => index >= 0);
+    const goalEnd = Math.min(...optionIndexes);
+    const state = createCycleState({ goal: args.slice(0, goalEnd).join(" "), explicitSkill: skillIndex === -1 ? null : args[skillIndex + 1] });
+    output({ state_file: await writeJson(args[outputIndex + 1], state), state });
+    return 0;
+  }
+  if (command === "cycle-resume" && args.length === 1) {
+    const state = await readJson(args[0]);
+    output({ summary: summarizeCycle(state), next: nextCycleStep(state) });
+    return 0;
+  }
+  if (command === "cycle-complete" && args.length === 3) {
+    const state = completeCycleStep(await readJson(args[0]), { skill: args[1], runId: args[2] });
+    output({ state_file: await writeJson(args[0], state), state, next: nextCycleStep(state) });
+    return 0;
+  }
+  if (command === "cycle-summary" && args.length === 1) { output(summarizeCycle(await readJson(args[0]))); return 0; }
+  if (command === "doctor" && args.length <= 1) { const result = await diagnoseWorkspace(args[0]); output(result); return result.status === "fail" ? 1 : 0; }
+  if (command === "import-playwright" && args.length === 3) {
+    const manifest = await readJson(args[0]);
+    manifest.verification_results = verificationFromPlaywrightReport(manifest, await readJson(args[1]), args[2]);
+    output(manifest);
     return 0;
   }
   output({ error: "invalid_arguments", usage: usage() });

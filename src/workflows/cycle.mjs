@@ -66,3 +66,19 @@ export function completeCycleStep(state, { skill, runId }) {
   result.status = result.completed_skills.length === result.selected_skills.length ? "completed" : "active";
   return result;
 }
+
+export function summarizeCycle(state) {
+  const validation = validateCycleState(state);
+  if (!validation.valid) throw new TypeError(validation.errors.join("; "));
+  const next = nextCycleStep(state);
+  return {
+    goal: state.goal,
+    invocation: state.invocation,
+    status: state.status,
+    completed: state.completed_skills.length,
+    total: state.selected_skills.length,
+    next_skill: next.skill ?? null,
+    waiting_questions: next.status === "waiting" ? next.questions : [],
+    run_ids: [...state.run_ids],
+  };
+}

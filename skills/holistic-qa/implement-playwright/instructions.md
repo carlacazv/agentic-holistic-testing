@@ -90,7 +90,7 @@ Required for isolation and determinism:
 
 Configure HTML, JSON, and JUnit reports plus trace, screenshot, and video capture for failures. `test.step` boundaries must remain visible in the report and trace so a failure is attributable to its `Should`. Add CI integration using the verified public npm registry.
 
-Execute the approved suite at least three times with zero retries. Bind the runner report to the executed command and the checksum of the implementation sources. Preserve failures as product verification evidence. Flaky, skipped, missing, stale, or source-mismatched evidence prevents a conclusive verification result.
+Execute the approved suite at least three times with zero retries and a Playwright JSON reporter. Import that report with `holistic-qa import-playwright <manifest.json> <playwright-report.json> <executed-command>`; do not author `verification_results` by hand. The importer binds the raw report checksum, executed command, and implementation source checksum. Preserve failures as product verification evidence. Flaky, skipped, missing, stale, or source-mismatched evidence prevents a conclusive verification result.
 
 ## Return
 

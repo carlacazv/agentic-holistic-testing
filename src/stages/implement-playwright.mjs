@@ -65,6 +65,52 @@ export function implementationSourceChecksum(manifest) {
   return checksum(canonicalJson(sources));
 }
 
+function reportTests(report) {
+  const collected = [];
+  const visit = (suite, titles = []) => {
+    const nextTitles = suite.title ? [...titles, suite.title] : titles;
+    for (const spec of suite.specs ?? []) {
+      for (const test of spec.tests ?? []) collected.push({
+        identity: `${spec.file ?? ""}:${[...nextTitles, spec.title, test.projectName ?? ""].join(" > ")}`,
+        results: test.results ?? [],
+      });
+    }
+    for (const child of suite.suites ?? []) visit(child, nextTitles);
+  };
+  for (const suite of report.suites ?? []) visit(suite);
+  return collected;
+}
+
+export function verificationFromPlaywrightReport(manifest, report, executedCommand) {
+  if (!report || typeof report !== "object" || !Array.isArray(report.suites)) throw new TypeError("Playwright JSON report is required");
+  if (executedCommand !== manifest.ci_integration?.command) throw new TypeError("Executed command must match the declared CI command");
+  const entries = reportTests(report);
+  if (entries.length === 0) throw new TypeError("Playwright report contains no collected tests");
+  const identities = new Map();
+  const statuses = [];
+  for (const entry of entries) {
+    identities.set(entry.identity, (identities.get(entry.identity) ?? 0) + 1);
+    for (const result of entry.results) statuses.push(result.status);
+  }
+  if (statuses.length === 0) throw new TypeError("Playwright report contains no test results");
+  const repetitions = Math.min(...identities.values());
+  const tests = identities.size;
+  const failedStatuses = new Set(["failed", "timedOut", "interrupted"]);
+  return {
+    tests,
+    repetitions,
+    retries: Number(report.config?.retries ?? 0),
+    passed: statuses.filter((status) => status === "passed").length,
+    failed: statuses.filter((status) => failedStatuses.has(status)).length,
+    flaky: 0,
+    skipped: statuses.filter((status) => status === "skipped").length,
+    executed_command: executedCommand,
+    report_checksum: checksum(canonicalJson(report)),
+    source_checksum: implementationSourceChecksum(manifest),
+    evidence_source: "playwright-json",
+  };
+}
+
 export function verificationOutcome(manifest) {
   const result = manifest.verification_results ?? {};
   if ((result.failed ?? 0) > 0) return "fail";
@@ -241,6 +287,9 @@ export function validatePlaywrightImplementation(manifest) {
   if (!CHECKSUM_PATTERN.test(verification.report_checksum ?? "")) {
     errors.push("/verification_results/report_checksum: verified runner evidence is required");
   }
+  if (verification.evidence_source !== "playwright-json") {
+    errors.push("/verification_results/evidence_source: expected playwright-json import");
+  }
   if (verification.source_checksum !== implementationSourceChecksum(manifest)) {
     errors.push("/verification_results/source_checksum: does not match the implementation sources");
   }
@@ -259,23 +308,30 @@ export const PLAYWRIGHT_REQUIRED_ARTIFACTS = Object.freeze([
   "implement-playwright/verification-results.json",
 ]);
 
-export async function writePlaywrightImplementation(store, manifest) {
-  const validation = validatePlaywrightImplementation(manifest);
+export async function writePlaywrightImplementation(store, manifest, { runnerReport, executedCommand } = {}) {
+  if (!runnerReport) throw new TypeError("Playwright JSON runner report is required to write implementation evidence");
+  const verifiedManifest = structuredClone(manifest);
+  verifiedManifest.verification_results = verificationFromPlaywrightReport(
+    verifiedManifest,
+    runnerReport,
+    executedCommand ?? verifiedManifest.ci_integration?.command,
+  );
+  const validation = validatePlaywrightImplementation(verifiedManifest);
   if (!validation.valid) throw new TypeError(validation.errors.join("; "));
   return Promise.all([
     store.writeArtifact(
       "implement-playwright/implementation-manifest.json",
-      `${canonicalJson(manifest)}\n`,
+      `${canonicalJson(verifiedManifest)}\n`,
       { type: "implement-playwright.manifest", mediaType: "application/json" },
     ),
     store.writeArtifact(
       "implement-playwright/testability-findings.csv",
-      serializeCsv(["id", "category", "target", "summary", "source_change_approved"], manifest.findings ?? []),
+      serializeCsv(["id", "category", "target", "summary", "source_change_approved"], verifiedManifest.findings ?? []),
       { type: "implement-playwright.findings", mediaType: "text/csv" },
     ),
     store.writeArtifact(
       "implement-playwright/verification-results.json",
-      `${canonicalJson(manifest.verification_results)}\n`,
+      `${canonicalJson(verifiedManifest.verification_results)}\n`,
       { type: "implement-playwright.verification", mediaType: "application/json" },
     ),
   ]);
