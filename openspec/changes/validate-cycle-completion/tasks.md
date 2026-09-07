@@ -11,4 +11,4 @@
 
 - [x] 3.1 Document the `run-` prefix and evidence gate in the cycle skill.
 - [x] 3.2 Cover successful nested output and all observed benchmark failures with CLI tests.
-- [ ] 3.3 Pass the complete clean CI validation gate.
+- [x] 3.3 Pass the complete clean CI validation gate.
