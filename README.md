@@ -17,6 +17,18 @@ Both providers list `holistic-qa-plan` and the remaining skills using portable h
 
 Call any skill directly when you want a focused activity. Use `cycle` when you want to start from a quality goal and let the coordinator select the smallest useful set of skills. Explicitly choosing one skill never starts the full cycle.
 
+For a guided end-to-end run:
+
+```sh
+holistic-qa doctor .
+holistic-qa cycle-start "Assess checkout quality" --output qa/cycle.json
+holistic-qa cycle-resume qa/cycle.json
+holistic-qa cycle-complete qa/cycle.json plan <run-id>
+holistic-qa cycle-summary qa/cycle.json
+```
+
+Cycle state is written atomically and can be resumed in another session. `cycle-complete` requires the run ID produced by the completed skill.
+
 Re-run the command to update. There is no auto-update, and `npx` resolves the default branch when you run it, so you get `main` rather than a release; pin with `#<sha>` when a run must be reproducible.
 
 ## Skills
@@ -61,6 +73,12 @@ test-results/<run-id>/     raw evidence, git-ignored
 Every skill returns the same envelope. `completed` requires the declared scope covered and every required artifact valid; it is rejected when an artifact is missing, partial, tampered with, or paired with an unreported gap. `partial` means valid artifacts cover only part of the scope, `blocked` means a recoverable prerequisite is missing, and `failed` means an unrecoverable error.
 
 A completed run requires a non-empty artifact contract and cannot be silently recreated with the same run ID. Use a new run ID for a fork; explicit resume support is represented by the cycle state and will be expanded for stage-level writers.
+
+Playwright verification is imported from its JSON reporter rather than authored as a claim:
+
+```sh
+holistic-qa import-playwright implementation.json playwright-report.json "npm run test:e2e"
+```
 
 ## Safety gates
 
