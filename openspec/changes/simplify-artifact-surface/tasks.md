@@ -20,5 +20,4 @@
 
 - [x] 4.1 Update the Return section of the seven `skills/holistic-qa/*/instructions.md` to name the canonical document, the summary, and the evidence each skill returns, and remove every reference to a removed artifact; verify no instruction body names a path the runtime no longer writes.
 - [x] 4.2 Update `README.md` where it describes run output so the durable tree shows the canonical shape; verify the described tree matches a real finalized run.
-- [ ] 4.3 Run the full validation from a clean checkout after rebuilding both provider layouts; verify `npm run validate` passes twice in a row and `npm run build:codex && npm run build:claude && npm run validate:adapter` succeeds.
-
+- [x] 4.3 Run the full validation from a clean checkout after rebuilding both provider layouts; verify `npm run validate` passes twice in a row and `npm run build:codex && npm run build:claude && npm run validate:adapter` succeeds.
