@@ -1,5 +1,6 @@
 import { canonicalJson } from "../core/canonical.mjs";
 import { checksum } from "../core/checksum.mjs";
+import { markdownTable } from "../core/markdown.mjs";
 import { planMetrics, validatePlanBundle } from "./plan.mjs";
 
 const PLAN_COLLECTIONS = Object.freeze([
@@ -177,20 +178,9 @@ export function reviewPlan({ before, after, findings = [], modifications = [], m
 }
 
 export const REVIEW_PLAN_REQUIRED_ARTIFACTS = Object.freeze([
-  "review-plan/improved-plan.json",
-  "review-plan/review.md",
+  "review-plan/plan.json",
+  "review-plan/summary.md",
 ]);
-
-function cell(value) {
-  return String(value ?? "").replaceAll("|", "\\|").replace(/\r?\n/g, " ");
-}
-
-function table(headers, rows) {
-  if (rows.length === 0) return "None.\n";
-  const separator = headers.map(() => "---");
-  const body = rows.map((row) => `| ${row.map(cell).join(" | ")} |`).join("\n");
-  return `| ${headers.join(" | ")} |\n| ${separator.join(" | ")} |\n${body}\n`;
-}
 
 export function reviewMarkdown(review, result) {
   const findings = review.findings ?? [];
@@ -205,13 +195,13 @@ export function reviewMarkdown(review, result) {
     "",
     "## Findings",
     "",
-    table(
+    markdownTable(
       ["ID", "Severity", "Target", "Status", "Summary", "Unblocker"],
       findings.map((finding) => [finding.id, finding.severity, finding.target, finding.status, finding.summary, finding.unblocker]),
     ),
     "## Modifications",
     "",
-    table(
+    markdownTable(
       ["ID", "Finding", "Operation", "Target", "Before", "After", "Rationale"],
       modifications.map((modification) => [
         modification.id, modification.finding_id, modification.operation,
@@ -220,7 +210,7 @@ export function reviewMarkdown(review, result) {
     ),
     "## Coverage",
     "",
-    table(
+    markdownTable(
       ["Metric", "Before", "After"],
       Object.keys(result.before_metrics).map((metric) => [metric, result.before_metrics[metric], result.after_metrics[metric]]),
     ),
@@ -235,12 +225,12 @@ export async function writeReviewPlanArtifacts(store, review) {
   if (!result.valid) throw new TypeError(result.errors.join("; "));
   return [
     await store.writeArtifact(
-      "review-plan/improved-plan.json",
+      "review-plan/plan.json",
       `${canonicalJson(review.after)}\n`,
       { type: "review-plan.improved-plan", mediaType: "application/json" },
     ),
     await store.writeArtifact(
-      "review-plan/review.md",
+      "review-plan/summary.md",
       reviewMarkdown(review, result),
       { type: "review-plan.review", mediaType: "text/markdown" },
     ),

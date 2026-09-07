@@ -1,6 +1,6 @@
 import { canonicalJson } from "../core/canonical.mjs";
-import { serializeCsv } from "../core/csv.mjs";
 import { checksum } from "../core/checksum.mjs";
+import { markdownTable } from "../core/markdown.mjs";
 
 const accessibleLocator = /getBy(?:Role|Label|Placeholder|Text|AltText|Title|TestId)\s*\(/;
 const webFirstAssertion = /expect\s*\([\s\S]*?\)\s*\.\s*(?:not\s*\.)?to(?:BeVisible|BeHidden|BeEnabled|BeDisabled|BeChecked|HaveText|ContainText|HaveValue|HaveCount|HaveURL|HaveTitle)\s*\(/;
@@ -120,9 +120,11 @@ export function verificationOutcome(manifest) {
 
 export function implementationCompletionGaps(manifest) {
   const outcome = verificationOutcome(manifest);
-  if (outcome === "inconclusive") return ["Playwright verification contains flaky or skipped outcomes"];
-  if (outcome === "not-run") return ["Playwright verification did not execute tests"];
-  return [];
+  const gaps = [];
+  if (outcome === "inconclusive") gaps.push("Playwright verification contains flaky or skipped outcomes");
+  if (outcome === "not-run") gaps.push("Playwright verification did not execute tests");
+  gaps.push(...inferredLocatorFiles(manifest).map((file) => `Locator evidence is inferred for ${file}`));
+  return gaps;
 }
 
 function titlesOf(source, pattern) {
@@ -303,10 +305,18 @@ export function inferredLocatorFiles(manifest) {
 }
 
 export const PLAYWRIGHT_REQUIRED_ARTIFACTS = Object.freeze([
-  "implement-playwright/implementation-manifest.json",
-  "implement-playwright/testability-findings.csv",
-  "implement-playwright/verification-results.json",
+  "implement-playwright/implementation.json",
+  "implement-playwright/summary.md",
 ]);
+
+export function playwrightImplementationMarkdown(manifest) {
+  return ["# Playwright Implementation", "", "## Files", "", markdownTable(
+    ["Path", "Kind", "Candidates", "Locator evidence", "UI abstraction"],
+    manifest.files.map((file) => [file.path, file.kind ?? "spec", (file.candidate_ids ?? []).join(", "), file.locator_evidence, file.ui_abstraction]),
+  ), "## Verification", "", markdownTable(["Field", "Value"], Object.entries(manifest.verification_results ?? {})),
+  "## Findings", "", markdownTable(["ID", "Category", "Target", "Summary"], (manifest.findings ?? []).map((item) => [item.id, item.category, item.target, item.summary])),
+  "## Gaps", "", ...(implementationCompletionGaps(manifest).length ? implementationCompletionGaps(manifest).map((gap) => `- ${gap}`) : ["None."]), ""].join("\n");
+}
 
 export async function writePlaywrightImplementation(store, manifest, { runnerReport, executedCommand } = {}) {
   if (!runnerReport) throw new TypeError("Playwright JSON runner report is required to write implementation evidence");
@@ -320,19 +330,14 @@ export async function writePlaywrightImplementation(store, manifest, { runnerRep
   if (!validation.valid) throw new TypeError(validation.errors.join("; "));
   return Promise.all([
     store.writeArtifact(
-      "implement-playwright/implementation-manifest.json",
+      "implement-playwright/implementation.json",
       `${canonicalJson(verifiedManifest)}\n`,
-      { type: "implement-playwright.manifest", mediaType: "application/json" },
+      { type: "implement-playwright.document", mediaType: "application/json" },
     ),
     store.writeArtifact(
-      "implement-playwright/testability-findings.csv",
-      serializeCsv(["id", "category", "target", "summary", "source_change_approved"], verifiedManifest.findings ?? []),
-      { type: "implement-playwright.findings", mediaType: "text/csv" },
-    ),
-    store.writeArtifact(
-      "implement-playwright/verification-results.json",
-      `${canonicalJson(verifiedManifest.verification_results)}\n`,
-      { type: "implement-playwright.verification", mediaType: "application/json" },
+      "implement-playwright/summary.md",
+      playwrightImplementationMarkdown(verifiedManifest),
+      { type: "implement-playwright.summary", mediaType: "text/markdown" },
     ),
   ]);
 }

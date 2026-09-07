@@ -49,7 +49,8 @@ test("exploration artifacts finalize", async (t) => {
   const store = new RunStore({ workspace, runId: "run-explore-0001" });
   await store.initialize();
   const session = fixture();
-  assert.equal((await writeExplorationSession(store, session)).length, 5);
+  assert.equal((await writeExplorationSession(store, session)).length, 3);
   const result = await store.finalize({ skill: "explore", status: "completed", requiredArtifacts: explorationRequiredArtifacts(session) });
   assert.equal(result.envelope.status, "completed");
+  assert.deepEqual(result.envelope.artifacts.map((item) => item.path), explorationRequiredArtifacts(session).sort());
 });

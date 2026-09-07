@@ -1,5 +1,5 @@
 import { canonicalJson } from "../core/canonical.mjs";
-import { serializeCsv } from "../core/csv.mjs";
+import { markdownTable } from "../core/markdown.mjs";
 
 export const AUTOMATION_LEVELS = Object.freeze(["unit", "component", "api", "browser-e2e", "manual"]);
 
@@ -16,6 +16,7 @@ export function validateAutomationStrategy(planCaseIds, rows) {
   const errors = [];
   if (!Array.isArray(planCaseIds) || !Array.isArray(rows)) return { valid: false, errors: ["case IDs and rows must be arrays"] };
   const expected = new Set(planCaseIds);
+  if (expected.size === 0) errors.push("/plan_case_ids: at least one planned case is required");
   const seen = new Set();
   for (const [index, row] of rows.entries()) {
     if (!expected.has(row.test_case_id)) errors.push(`/rows/${index}: unknown case ${row.test_case_id}`);
@@ -61,7 +62,7 @@ export function automationMetrics(planCaseIds, rows) {
   return {
     cases_total: planCaseIds.length,
     cases_assessed: new Set(rows.map((row) => row.test_case_id)).size,
-    case_coverage_percent: planCaseIds.length === 0 ? 100 : Number(((new Set(rows.map((row) => row.test_case_id)).size / planCaseIds.length) * 100).toFixed(2)),
+    case_coverage_percent: planCaseIds.length === 0 ? null : Number(((new Set(rows.map((row) => row.test_case_id)).size / planCaseIds.length) * 100).toFixed(2)),
     automate: rows.filter((row) => row.decision === "automate").length,
     manual: rows.filter((row) => row.decision === "manual").length,
     deferred: rows.filter((row) => row.decision === "defer").length,
@@ -71,34 +72,22 @@ export function automationMetrics(planCaseIds, rows) {
 }
 
 export const AUTOMATION_REQUIRED_ARTIFACTS = Object.freeze([
-  "automation-strategy/candidate-matrix.csv",
-  "automation-strategy/approved-playwright-candidates.json",
-  "automation-strategy/metrics.json",
+  "automation-strategy/strategy.json",
+  "automation-strategy/summary.md",
 ]);
+
+export function automationStrategyMarkdown(planCaseIds, rows) {
+  return ["# Automation Strategy", "", markdownTable(
+    ["Case", "Level", "Decision", "Approved", "Impact", "Stability", "Cost", "Rationale"],
+    rows.map((row) => [row.test_case_id, row.recommended_level, row.decision, row.approved, row.impact_value, row.stability, row.cost, row.rationale]),
+  ), "## Metrics", "", markdownTable(["Metric", "Value"], Object.entries(automationMetrics(planCaseIds, rows))), ""].join("\n");
+}
 
 export async function writeAutomationStrategy(store, planCaseIds, rows) {
   const validation = validateAutomationStrategy(planCaseIds, rows);
   if (!validation.valid) throw new TypeError(validation.errors.join("; "));
-  const columns = [
-    "test_case_id", "recommended_level", "unit_suitable", "component_suitable",
-    "api_suitable", "browser_suitable", "manual_required",
-    "impact_value", "stability", "cost", "decision", "approved", "rationale",
-  ];
   return Promise.all([
-    store.writeArtifact(
-      "automation-strategy/candidate-matrix.csv",
-      serializeCsv(columns, rows),
-      { type: "automation-strategy.matrix", mediaType: "text/csv" },
-    ),
-    store.writeArtifact(
-      "automation-strategy/approved-playwright-candidates.json",
-      `${canonicalJson(approvedPlaywrightCandidates(rows))}\n`,
-      { type: "automation-strategy.approved", mediaType: "application/json" },
-    ),
-    store.writeArtifact(
-      "automation-strategy/metrics.json",
-      `${canonicalJson(automationMetrics(planCaseIds, rows))}\n`,
-      { type: "automation-strategy.metrics", mediaType: "application/json" },
-    ),
+    store.writeArtifact("automation-strategy/strategy.json", `${canonicalJson({ plan_case_ids: planCaseIds, rows })}\n`, { type: "automation-strategy.document", mediaType: "application/json" }),
+    store.writeArtifact("automation-strategy/summary.md", automationStrategyMarkdown(planCaseIds, rows), { type: "automation-strategy.summary", mediaType: "text/markdown" }),
   ]);
 }

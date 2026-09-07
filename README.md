@@ -65,12 +65,17 @@ Workflow completion, verification outcome, and release recommendation are separa
 qa/runs/<run-id>/          durable, checksummed artifacts
 ├── artifact-index.json
 ├── return-envelope.json
-└── <skill artifacts>
+└── <skill>/
+    ├── <canonical-document>.json
+    ├── summary.md
+    └── <independent evidence only>
 
 test-results/<run-id>/     raw evidence, git-ignored
 ```
 
 Every skill returns the same envelope. `completed` requires the declared scope covered and every required artifact valid; it is rejected when an artifact is missing, partial, tampered with, or paired with an unreported gap. `partial` means valid artifacts cover only part of the scope, `blocked` means a recoverable prerequisite is missing, and `failed` means an unrecoverable error.
+
+Each stage has one canonical machine-readable document and one readable summary. Metrics live only in the return envelope, filtered views are derived on read, and separate evidence files exist only when the evidence cannot be represented by the canonical document. This prevents conflicting copies of the same result.
 
 A completed run requires a non-empty artifact contract and cannot be silently recreated with the same run ID. Use a new run ID for a fork; explicit resume support is represented by the cycle state and will be expanded for stage-level writers.
 
@@ -102,11 +107,15 @@ import { RunStore } from "@carlacazv/holistic-qa";
 
 const run = new RunStore({ workspace: process.cwd(), runId: "run-example-0001" });
 await run.initialize();
-await run.writeArtifact("plan/requirements.md", "# Requirements\n", {
-  type: "plan.requirements",
+await run.writeArtifact("plan/plan.json", "{}\n", {
+  type: "plan.document",
+  mediaType: "application/json",
+});
+await run.writeArtifact("plan/summary.md", "# Plan\n", {
+  type: "plan.summary",
   mediaType: "text/markdown",
 });
-await run.finalize({ skill: "plan", status: "completed", requiredArtifacts: ["plan/requirements.md"] });
+await run.finalize({ skill: "plan", status: "completed", requiredArtifacts: ["plan/plan.json", "plan/summary.md"] });
 ```
 
 ## Contributing

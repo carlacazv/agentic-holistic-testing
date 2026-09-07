@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { RunStore } from "../src/core/run-store.mjs";
@@ -45,7 +45,10 @@ test("accessibility artifacts finalize", async (t) => {
   const store = new RunStore({ workspace, runId: "run-a11y-0001" });
   await store.initialize();
   const audit = fixture();
-  assert.equal((await writeAccessibilityAudit(store, audit)).length, 6);
+  assert.equal((await writeAccessibilityAudit(store, audit)).length, 2);
   const result = await store.finalize({ skill: "accessibility", status: "completed", requiredArtifacts: accessibilityRequiredArtifacts(audit) });
   assert.equal(result.envelope.status, "completed");
+  assert.deepEqual(result.envelope.artifacts.map((item) => item.path), ["accessibility/audit.json", "accessibility/summary.md"]);
+  const summary = await readFile(path.join(store.durableDirectory, "accessibility/summary.md"), "utf8");
+  assert.match(summary, /## Unresolved criteria/);
 });

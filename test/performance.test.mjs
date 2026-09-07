@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { RunStore } from "../src/core/run-store.mjs";
@@ -43,9 +43,12 @@ test("baseline artifacts preserve uncertainty and finalize", async (t) => {
   const store = new RunStore({ workspace, runId: "run-performance-0001" });
   await store.initialize();
   const audit = fixture();
-  assert.equal((await writePerformanceAudit(store, audit)).length, 7);
+  assert.equal((await writePerformanceAudit(store, audit)).length, 2);
   const result = await store.finalize({ skill: "performance", status: "completed", requiredArtifacts: performanceRequiredArtifacts(audit), residualRisks: ["No SLA was supplied"] });
   assert.equal(result.envelope.status, "completed");
+  const document = JSON.parse(await readFile(path.join(store.durableDirectory, "performance/audit.json"), "utf8"));
+  assert.match(document.uncertainty, /No SLA/);
+  assert.equal(document.api_timings[0].summary.samples, audit.api_timings[0].samples_ms.length);
 });
 
 test("an unrecognized budget direction is rejected and never passes", () => {

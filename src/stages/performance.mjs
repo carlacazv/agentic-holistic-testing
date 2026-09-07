@@ -1,5 +1,5 @@
 import { canonicalJson } from "../core/canonical.mjs";
-import { serializeCsv } from "../core/csv.mjs";
+import { markdownTable } from "../core/markdown.mjs";
 
 export const BUDGET_SOURCES = Object.freeze(["lighthouse", "api"]);
 export const BUDGET_DIRECTIONS = Object.freeze(["max", "min"]);
@@ -114,23 +114,35 @@ export function performanceMetrics(audit) {
 
 export function performanceRequiredArtifacts(audit) {
   return [
-    "performance/scope.md", "performance/budgets-or-baseline.json", "performance/lighthouse-results.json",
-    "performance/api-timings.json", "performance/variability.md", "performance/regressions.csv",
-    "performance/metrics.json", ...audit.defects.map((defect) => `performance/defects/${defect.id}.md`),
+    "performance/audit.json", "performance/summary.md",
+    ...audit.defects.map((defect) => `performance/defects/${defect.id}.md`),
   ];
+}
+
+export function canonicalPerformanceAudit(audit) {
+  return {
+    ...audit,
+    budgets: evaluateBudgets(audit),
+    api_timings: audit.api_timings.map((entry) => ({ ...entry, summary: distribution(entry.samples_ms) })),
+    uncertainty: audit.mode === "baseline" ? "No SLA was supplied; values are a comparable baseline only." : null,
+  };
+}
+
+export function performanceMarkdown(audit) {
+  const document = canonicalPerformanceAudit(audit);
+  return ["# Performance Audit", "", `- Mode: ${audit.mode}`, `- Environment: ${audit.scope.environment}`, `- Conditions: ${audit.scope.conditions}`, "",
+    "## Budgets", "", markdownTable(["ID", "Source", "Target", "Metric", "Threshold", "Actual", "Direction", "Passed"], document.budgets.map((item) => [item.id, item.source, item.target, item.metric, item.threshold, item.actual, item.direction, item.passed])),
+    "## API distributions", "", markdownTable(["Endpoint", "Samples", "Min", "Median", "P95", "Max"], document.api_timings.map((item) => [item.endpoint, item.summary.samples, item.summary.min, item.summary.median, item.summary.p95, item.summary.max])),
+    "## Variability", "", audit.variability_notes, "", "## Uncertainty", "", document.uncertainty ?? "None declared.", "",
+    "## Metrics", "", markdownTable(["Metric", "Value"], Object.entries(performanceMetrics(audit))), ""].join("\n");
 }
 
 export async function writePerformanceAudit(store, audit) {
   const validation = validatePerformanceAudit(audit);
   if (!validation.valid) throw new TypeError(validation.errors.join("; "));
   const artifacts = [];
-  artifacts.push(await store.writeArtifact("performance/scope.md", `# Performance Scope\n\n- Mode: ${audit.mode}\n- Environment: ${audit.scope.environment}\n- Pages: ${audit.scope.pages.join(", ")}\n- Endpoints: ${audit.scope.endpoints.join(", ")}\n- Conditions: ${audit.scope.conditions}\n`, { type: "performance.scope", mediaType: "text/markdown" }));
-  artifacts.push(await store.writeArtifact("performance/budgets-or-baseline.json", `${canonicalJson({ mode: audit.mode, budgets: validation.evaluations, uncertainty: audit.mode === "baseline" ? "No SLA was supplied; values are a comparable baseline only." : null })}\n`, { type: "performance.budgets", mediaType: "application/json" }));
-  artifacts.push(await store.writeArtifact("performance/lighthouse-results.json", `${canonicalJson(audit.lighthouse_runs)}\n`, { type: "performance.lighthouse", mediaType: "application/json" }));
-  artifacts.push(await store.writeArtifact("performance/api-timings.json", `${canonicalJson(audit.api_timings.map((entry) => ({ ...entry, summary: distribution(entry.samples_ms) })))}\n`, { type: "performance.api", mediaType: "application/json" }));
-  artifacts.push(await store.writeArtifact("performance/variability.md", `# Variability Notes\n\n${audit.variability_notes}\n`, { type: "performance.variability", mediaType: "text/markdown" }));
-  artifacts.push(await store.writeArtifact("performance/regressions.csv", serializeCsv(["id", "budget_id", "metric", "actual", "threshold", "defect_id", "evidence"], audit.regressions ?? []), { type: "performance.regressions", mediaType: "text/csv" }));
-  artifacts.push(await store.writeArtifact("performance/metrics.json", `${canonicalJson(performanceMetrics(audit))}\n`, { type: "performance.metrics", mediaType: "application/json" }));
+  artifacts.push(await store.writeArtifact("performance/audit.json", `${canonicalJson(canonicalPerformanceAudit(audit))}\n`, { type: "performance.document", mediaType: "application/json" }));
+  artifacts.push(await store.writeArtifact("performance/summary.md", performanceMarkdown(audit), { type: "performance.summary", mediaType: "text/markdown" }));
   for (const defect of audit.defects) artifacts.push(await store.writeArtifact(`performance/defects/${defect.id}.md`, `# ${defect.title}\n\n${defect.reproduction}\n`, { type: "performance.defect", mediaType: "text/markdown" }));
   return artifacts;
 }

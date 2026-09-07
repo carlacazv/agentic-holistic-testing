@@ -1,4 +1,5 @@
-import { serializeCsv } from "../core/csv.mjs";
+import { canonicalJson } from "../core/canonical.mjs";
+import { markdownTable } from "../core/markdown.mjs";
 
 export function validateExplorationSession(session) {
   const errors = [];
@@ -40,12 +41,18 @@ export function validateExplorationSession(session) {
 
 export function explorationRequiredArtifacts(session) {
   return [
-    "explore/charter.md",
-    "explore/session-notes.csv",
-    "explore/coverage-notes.csv",
-    "explore/evidence-index.csv",
+    "explore/session.json",
+    "explore/summary.md",
     ...session.defects.map((defect) => `explore/defects/${defect.id}/reproduction.md`),
   ];
+}
+
+export function explorationMarkdown(session) {
+  return ["# Exploratory Session", "", "## Charter", "", session.charter.mission, "",
+    `- Timebox: ${session.charter.timebox_minutes} minutes`, `- Environment: ${session.charter.environment}`, "",
+    "## Notes", "", markdownTable(["ID", "Timestamp", "Type", "Content"], session.notes.map((item) => [item.id, item.timestamp, item.type, item.content])),
+    "## Coverage", "", markdownTable(["Area", "Depth", "Gap", "Notes"], session.coverage.map((item) => [item.area, item.depth, item.gap, item.notes])),
+    "## Evidence", "", markdownTable(["ID", "Type", "Durable path", "Confidence", "Linked record"], session.evidence.map((item) => [item.id, item.type, item.durable_path, item.confidence, item.linked_record])), ""].join("\n");
 }
 
 function defectMarkdown(defect) {
@@ -56,14 +63,8 @@ export async function writeExplorationSession(store, session) {
   const validation = validateExplorationSession(session);
   if (!validation.valid) throw new TypeError(validation.errors.join("; "));
   const artifacts = [];
-  artifacts.push(await store.writeArtifact(
-    "explore/charter.md",
-    `# Exploratory Charter\n\n## Mission\n\n${session.charter.mission}\n\n- Timebox: ${session.charter.timebox_minutes} minutes\n- Environment: ${session.charter.environment}\n\n## Heuristics\n\n${session.charter.heuristics.map((item) => `- ${item.name}: ${item.rationale}`).join("\n")}\n`,
-    { type: "explore.charter", mediaType: "text/markdown" },
-  ));
-  artifacts.push(await store.writeArtifact("explore/session-notes.csv", serializeCsv(["id", "timestamp", "type", "content"], session.notes), { type: "explore.notes", mediaType: "text/csv" }));
-  artifacts.push(await store.writeArtifact("explore/coverage-notes.csv", serializeCsv(["area", "depth", "gap", "notes"], session.coverage), { type: "explore.coverage", mediaType: "text/csv" }));
-  artifacts.push(await store.writeArtifact("explore/evidence-index.csv", serializeCsv(["id", "type", "raw_path", "durable_path", "checksum", "confidence", "linked_record"], session.evidence), { type: "explore.evidence", mediaType: "text/csv" }));
+  artifacts.push(await store.writeArtifact("explore/session.json", `${canonicalJson(session)}\n`, { type: "explore.document", mediaType: "application/json" }));
+  artifacts.push(await store.writeArtifact("explore/summary.md", explorationMarkdown(session), { type: "explore.summary", mediaType: "text/markdown" }));
   for (const defect of session.defects) {
     artifacts.push(await store.writeArtifact(`explore/defects/${defect.id}/reproduction.md`, defectMarkdown(defect), { type: "explore.defect", mediaType: "text/markdown" }));
   }

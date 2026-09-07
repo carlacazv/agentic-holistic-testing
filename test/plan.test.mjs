@@ -82,6 +82,9 @@ test("plan bundle renders checksum-valid artifacts and envelope", async (t) => {
   await store.initialize();
   const entries = await writePlanBundle(store, await fixture());
   assert.equal(entries.length, PLAN_REQUIRED_ARTIFACTS.length);
+  assert.deepEqual(PLAN_REQUIRED_ARTIFACTS, ["plan/plan.json", "plan/summary.md"]);
+  assert.deepEqual(JSON.parse(await readFile(path.join(store.durableDirectory, "plan/plan.json"), "utf8")), await fixture());
+  assert.match(await readFile(path.join(store.durableDirectory, "plan/summary.md"), "utf8"), /## Test cases and steps/);
   const result = await store.finalize({
     skill: "plan",
     status: "completed",

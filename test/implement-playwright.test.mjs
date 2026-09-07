@@ -208,9 +208,10 @@ test("implementation evidence finalizes", async (t) => {
   t.after(() => rm(workspace, { recursive: true, force: true }));
   const store = new RunStore({ workspace, runId: "run-playwright-0001" });
   await store.initialize();
-  assert.equal((await writePlaywrightImplementation(store, await implementationFixture(), { runnerReport: reporterFixture() })).length, 3);
+  assert.equal((await writePlaywrightImplementation(store, await implementationFixture(), { runnerReport: reporterFixture() })).length, 2);
   const result = await store.finalize({ skill: "implement-playwright", status: "completed", requiredArtifacts: PLAYWRIGHT_REQUIRED_ARTIFACTS });
   assert.equal(result.envelope.status, "completed");
+  assert.deepEqual(result.envelope.artifacts.map((item) => item.path), [...PLAYWRIGHT_REQUIRED_ARTIFACTS]);
 });
 
 test("implementation writer rejects hand-authored verification without raw runner evidence", async (t) => {
@@ -328,5 +329,6 @@ test("a file that declares locators declares where they came from", async () => 
   inferred.files[1].locator_evidence = "inferred";
   assert.deepEqual(validatePlaywrightImplementation(refreshVerification(inferred)).errors, []);
   assert.deepEqual(inferredLocatorFiles(inferred), ["tests/pom/items.page.ts"]);
+  assert.match(implementationCompletionGaps(inferred).join("\n"), /Locator evidence is inferred/);
   assert.deepEqual(inferredLocatorFiles(await implementationFixture()), []);
 });

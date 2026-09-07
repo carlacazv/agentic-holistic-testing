@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { RunStore } from "../src/core/run-store.mjs";
 import {
   AUTOMATION_REQUIRED_ARTIFACTS,
   approvedPlaywrightCandidates,
+  automationMetrics,
   recommendAutomationLevel,
   validateAutomationStrategy,
   writeAutomationStrategy,
@@ -35,12 +36,20 @@ test("strategy rejects missing cases and inflated browser recommendations", () =
   assert.match(errors, /expected component/);
 });
 
+test("empty strategy cannot report complete coverage", () => {
+  assert.equal(validateAutomationStrategy([], []).valid, false);
+  assert.equal(automationMetrics([], []).case_coverage_percent, null);
+});
+
 test("strategy artifacts finalize", async (t) => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "holistic-qa-strategy-"));
   t.after(() => rm(workspace, { recursive: true, force: true }));
   const store = new RunStore({ workspace, runId: "run-strategy-0001" });
   await store.initialize();
-  assert.equal((await writeAutomationStrategy(store, caseIds, rows)).length, 3);
+  assert.equal((await writeAutomationStrategy(store, caseIds, rows)).length, 2);
   const result = await store.finalize({ skill: "automation-strategy", status: "completed", requiredArtifacts: AUTOMATION_REQUIRED_ARTIFACTS });
   assert.equal(result.envelope.status, "completed");
+  assert.deepEqual(result.envelope.artifacts.map((item) => item.path), [...AUTOMATION_REQUIRED_ARTIFACTS]);
+  const document = JSON.parse(await readFile(path.join(store.durableDirectory, "automation-strategy/strategy.json"), "utf8"));
+  assert.deepEqual(approvedPlaywrightCandidates(document.rows), approvedPlaywrightCandidates(rows));
 });
