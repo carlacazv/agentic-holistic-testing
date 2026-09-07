@@ -1,0 +1,81 @@
+name: Planning Poker benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'benchmarks/planning-poker/**'
+      - '.github/workflows/planning-poker-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ALLOWED_ORIGINS: http://127.0.0.1:3100
+      APP_URL: http://127.0.0.1:3100
+      CHECKPOINT_DISABLE: '1'
+      DATABASE_URL: file:./benchmark-e2e.db
+      HOST: 127.0.0.1
+      PORT: '3100'
+    steps:
+      - name: Checkout benchmark
+        uses: actions/checkout@v4
+        with:
+          path: agent
+      - name: Checkout Planning Poker subject
+        uses: actions/checkout@v4
+        with:
+          repository: ljeronimodarocha/planer-poker
+          path: subject
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: subject/package-lock.json
+      - name: Install subject and benchmark dependencies
+        working-directory: subject
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false \
+            @faker-js/faker@10.5.0 \
+            @playwright/test@1.62.1 \
+            @types/node@26.2.0 \
+            typescript@5.9.3 \
+            zod@4.4.3
+      - name: Install Chromium
+        working-directory: subject
+        run: npx playwright install --with-deps chromium
+      - name: Apply benchmark harness
+        run: |
+          cp agent/benchmarks/planning-poker/playwright.config.ts subject/playwright.config.ts
+          cp agent/benchmarks/planning-poker/tsconfig.e2e.json subject/tsconfig.e2e.json
+          for directory in config enums fixtures pages test-data tests; do
+            cp -R "agent/benchmarks/planning-poker/${directory}" "subject/${directory}"
+          done
+      - name: Generate Prisma client
+        working-directory: subject
+        run: npx prisma generate --schema server/prisma/schema.prisma
+      - name: Type-check benchmark harness
+        working-directory: subject
+        run: npx tsc --project tsconfig.e2e.json
+      - name: Run browser benchmark
+        working-directory: subject
+        run: npx playwright test --repeat-each=3 --retries=0 --workers=1
+      - name: Remove isolated benchmark database
+        if: always()
+        working-directory: subject
+        run: rm -f benchmark-e2e.db benchmark-e2e.db-journal benchmark-e2e.db-shm benchmark-e2e.db-wal
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: planning-poker-benchmark-evidence
+          path: |
+            subject/test-results
+            subject/playwright-report
+          if-no-files-found: warn
