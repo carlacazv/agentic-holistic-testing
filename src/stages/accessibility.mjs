@@ -1,5 +1,5 @@
 import { canonicalJson } from "../core/canonical.mjs";
-import { serializeCsv } from "../core/csv.mjs";
+import { markdownTable } from "../core/markdown.mjs";
 
 const BASELINE_MANUAL_CRITERIA = Object.freeze([
   "1.4.3", "1.4.10", "1.4.12", "2.1.1", "2.4.7", "2.5.8", "4.1.2", "4.1.3",
@@ -57,27 +57,27 @@ export function accessibilityMetrics(audit) {
 
 export function accessibilityRequiredArtifacts(audit) {
   return [
-    "accessibility/scope.md",
-    "accessibility/axe-results.json",
-    "accessibility/manual-checks.csv",
-    "accessibility/evidence-index.csv",
-    "accessibility/unresolved-criteria.csv",
-    "accessibility/metrics.json",
+    "accessibility/audit.json",
+    "accessibility/summary.md",
     ...audit.defects.map((defect) => `accessibility/defects/${defect.id}.md`),
   ];
+}
+
+export function accessibilityMarkdown(audit) {
+  const unresolved = audit.manual_checks.filter((check) => check.status === "unresolved");
+  return ["# Accessibility Audit", "", `- Standard: ${audit.scope.standard}`, `- Pages: ${audit.scope.pages.join(", ")}`, "",
+    "## Automated results", "", markdownTable(["Page", "Violations"], audit.axe_results.map((item) => [item.page, (item.violations ?? []).length])),
+    "## Manual checks", "", markdownTable(["Criterion", "Name", "Status", "Method", "Evidence", "Defect"], audit.manual_checks.map((item) => [item.criterion, item.name, item.status, item.method, (item.evidence_ids ?? []).join(", "), item.defect_id])),
+    "## Unresolved criteria", "", markdownTable(["Criterion", "Reason", "Unblocker"], unresolved.map((item) => [item.criterion, item.reason, item.unblocker])),
+    "## Metrics", "", markdownTable(["Metric", "Value"], Object.entries(accessibilityMetrics(audit))), ""].join("\n");
 }
 
 export async function writeAccessibilityAudit(store, audit) {
   const validation = validateAccessibilityAudit(audit);
   if (!validation.valid) throw new TypeError(validation.errors.join("; "));
   const artifacts = [];
-  artifacts.push(await store.writeArtifact("accessibility/scope.md", `# Accessibility Scope\n\n- Standard: ${audit.scope.standard}\n- Pages: ${audit.scope.pages.join(", ")}\n- Viewports: ${audit.scope.viewports.join(", ")}\n- Input methods: ${audit.scope.input_methods.join(", ")}\n- Assistive technologies: ${audit.scope.assistive_technologies.join(", ")}\n`, { type: "accessibility.scope", mediaType: "text/markdown" }));
-  artifacts.push(await store.writeArtifact("accessibility/axe-results.json", `${canonicalJson(audit.axe_results)}\n`, { type: "accessibility.axe", mediaType: "application/json" }));
-  artifacts.push(await store.writeArtifact("accessibility/manual-checks.csv", serializeCsv(["criterion", "name", "status", "method", "evidence_ids", "defect_id", "reason", "unblocker"], audit.manual_checks), { type: "accessibility.manual", mediaType: "text/csv" }));
-  artifacts.push(await store.writeArtifact("accessibility/evidence-index.csv", serializeCsv(["id", "type", "path", "checksum", "criterion"], audit.evidence), { type: "accessibility.evidence", mediaType: "text/csv" }));
-  const unresolved = audit.manual_checks.filter((check) => check.status === "unresolved");
-  artifacts.push(await store.writeArtifact("accessibility/unresolved-criteria.csv", serializeCsv(["criterion", "name", "status", "method", "evidence_ids", "defect_id", "reason", "unblocker"], unresolved), { type: "accessibility.unresolved", mediaType: "text/csv" }));
-  artifacts.push(await store.writeArtifact("accessibility/metrics.json", `${canonicalJson(accessibilityMetrics(audit))}\n`, { type: "accessibility.metrics", mediaType: "application/json" }));
+  artifacts.push(await store.writeArtifact("accessibility/audit.json", `${canonicalJson(audit)}\n`, { type: "accessibility.document", mediaType: "application/json" }));
+  artifacts.push(await store.writeArtifact("accessibility/summary.md", accessibilityMarkdown(audit), { type: "accessibility.summary", mediaType: "text/markdown" }));
   for (const defect of audit.defects) artifacts.push(await store.writeArtifact(`accessibility/defects/${defect.id}.md`, `# ${defect.title}\n\n${defect.reproduction}\n`, { type: "accessibility.defect", mediaType: "text/markdown" }));
   return artifacts;
 }

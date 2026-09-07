@@ -30,8 +30,8 @@ Validate the improved plan using the upstream plan contract. Calculate before/af
 
 ## Required artifacts
 
-- `review-plan/improved-plan.json`
-- `review-plan/review.md` - mode, both bundle checksums, findings, modifications, before/after coverage, and remaining gaps in one readable document
+- `review-plan/plan.json` - the improved bundle in the same canonical shape and filename used by the plan stage
+- `review-plan/summary.md` - mode, both bundle checksums, findings, modifications, before/after coverage, and remaining gaps
 - Foundation control files
 
 Return `completed` when the declared review scope is covered, the improved plan validates, and every resolved finding maps to an exact modification. A review the user chose not to act on returns nothing durable at all. Return `partial` with open findings and residual risks when product authority or other inputs prevent resolution. Return `blocked` for an invalid upstream integrity gate.

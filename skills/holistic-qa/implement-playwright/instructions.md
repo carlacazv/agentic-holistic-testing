@@ -94,7 +94,7 @@ Execute the approved suite at least three times with zero retries and a Playwrig
 
 ## Return
 
-Return the approved TypeScript tests, fixtures, Playwright configuration, CI integration, locator/testability findings, and verification results in `implement-playwright/implementation-manifest.json`, `implement-playwright/testability-findings.csv`, and `implement-playwright/verification-results.json`, plus foundation control files.
+Return the approved TypeScript tests, fixtures, Playwright configuration, CI integration, locator/testability findings, and imported verification results in the single canonical `implement-playwright/implementation.json` and readable `implement-playwright/summary.md`, plus foundation controls. Do not persist separate findings or verification copies.
 
 Each manifest file entry declares its `kind` (`spec`, `page-object`, or `component-object`; `spec` when omitted), sits at the path its kind requires, and declares `locator_evidence` when it holds locators. Every spec covering a browser candidate also declares `ui_abstraction` as the page or component object it uses. The manifest declares at least one approved candidate, at least one spec, and a `verification_results.tests` count that is a positive integer covering every declared spec, so an empty or under-executed run cannot reach `completed`. `validatePlaywrightImplementation` enforces the structure, flake, and abstraction rules above and rejects the implementation before any artifact is written, so a deviation that is genuinely correct must be justified through a finding rather than by loosening the code: category `locator` covers a structural or positional selector, and category `exclusion` covers a skipped test.
 

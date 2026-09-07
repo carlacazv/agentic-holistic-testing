@@ -162,10 +162,11 @@ test("the review is one readable document plus the plan", async (t) => {
   const store = new RunStore({ workspace, runId: "run-review-fixture-02" });
   await store.initialize();
   await writeReviewPlanArtifacts(store, await reviewFixture());
-  const document = await readFile(path.join(workspace, "qa/runs/run-review-fixture-02/review-plan/review.md"), "utf8");
+  const document = await readFile(path.join(workspace, "qa/runs/run-review-fixture-02/review-plan/summary.md"), "utf8");
   assert.match(document, /- Mode: apply/);
   assert.match(document, /\| finding-trace \| high \| req-status \| resolved \|/);
   assert.match(document, /\| mod-link \| finding-trace \| add \|/);
   assert.match(document, /\| requirements_test_linked_percent \| 50 \| 100 \|/);
   assert.match(document, /## Remaining gaps\n\nNone\./);
+  assert.deepEqual(JSON.parse(await readFile(path.join(store.durableDirectory, "review-plan/plan.json"), "utf8")), (await reviewFixture()).after);
 });

@@ -32,16 +32,7 @@ If no testable behavior source exists, return `blocked` with a recoverable error
 
 ## Required durable artifacts
 
-- `plan/requirements.csv`
-- `plan/risks.csv`
-- `plan/test-cases.csv`
-- `plan/test-steps.csv`
-- `plan/requirement-test-links.csv`
-- `plan/risk-test-links.csv`
-- `plan/test-data-prerequisites.md`
-- `plan/rationale.md`
-- `plan/metrics.json`
-- Foundation `artifact-index.json` and `return-envelope.json`
+Return `plan/plan.json` as the single canonical bundle and `plan/summary.md` as its readable rendering, plus foundation `artifact-index.json` and `return-envelope.json`. Metrics belong only in the return envelope; do not persist duplicate CSV, rationale, prerequisite, or metrics views.
 
 Return `completed` only when all accepted requirements and identified risks are test-linked or explicitly disposed and every artifact validates. Return `partial` with uncovered IDs, gaps, and residual risks when useful valid artifacts cover only part of scope. Return `blocked` when no useful plan can be produced because a prerequisite or authoritative behavior source is missing. Never silently exclude unavailable coverage.
 

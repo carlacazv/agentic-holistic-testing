@@ -1,5 +1,5 @@
-import { serializeCsv } from "../core/csv.mjs";
 import { canonicalJson } from "../core/canonical.mjs";
+import { markdownTable } from "../core/markdown.mjs";
 
 export const PLAN_TECHNIQUES = Object.freeze([
   "equivalence-partitioning",
@@ -215,46 +215,32 @@ export function planMetrics(bundle) {
   };
 }
 
-const artifactDefinitions = [
-  ["plan/requirements.csv", "plan.requirements", ["id", "source_id", "title", "acceptance_criteria", "disposition", "disposition_rationale"], "requirements"],
-  ["plan/risks.csv", "plan.risks", ["id", "title", "impact", "likelihood", "exposure", "priority", "disposition", "disposition_rationale"], "risks"],
-  ["plan/test-cases.csv", "plan.test-cases", ["id", "title", "technique", "rationale", "boundary_group", "boundary_role", "boundary_value"], "test_cases"],
-  ["plan/test-steps.csv", "plan.test-steps", ["id", "test_case_id", "sequence", "action", "expected"], "test_steps"],
-  ["plan/requirement-test-links.csv", "plan.requirement-links", ["requirement_id", "test_case_id"], "requirement_test_links"],
-  ["plan/risk-test-links.csv", "plan.risk-links", ["risk_id", "test_case_id"], "risk_test_links"],
-];
+export function planMarkdown(bundle) {
+  const metrics = planMetrics(bundle);
+  return [
+    "# Quality Plan", "", "## Requirements", "",
+    markdownTable(["ID", "Title", "Acceptance criteria", "Disposition", "Rationale"], bundle.requirements.map((item) => [item.id, item.title, item.acceptance_criteria, item.disposition, item.disposition_rationale])),
+    "## Risks", "", markdownTable(["ID", "Title", "Exposure", "Priority", "Disposition", "Rationale"], bundle.risks.map((item) => [item.id, item.title, item.exposure, item.priority, item.disposition, item.disposition_rationale])),
+    "## Test cases and steps", "", markdownTable(["Case", "Technique", "Rationale", "Step", "Action", "Expected"], bundle.test_cases.flatMap((item) => {
+      const steps = bundle.test_steps.filter((step) => step.test_case_id === item.id).sort((a, b) => a.sequence - b.sequence);
+      return steps.map((step) => [item.id, item.technique, item.rationale, step.sequence, step.action, step.expected]);
+    })),
+    "## Test data prerequisites", "", ...(bundle.test_data_prerequisites.length ? bundle.test_data_prerequisites.map((item) => `- ${item}`) : ["None."]), "",
+    "## Heuristics", "", markdownTable(["Name", "Selected", "Rationale"], bundle.heuristics.map((item) => [item.name, item.selected, item.rationale])),
+    "## Coverage", "", markdownTable(["Metric", "Value"], Object.entries(metrics)), "",
+  ].join("\n");
+}
 
 export async function writePlanBundle(store, bundle) {
   const validation = validatePlanBundle(bundle);
   if (!validation.valid) throw new TypeError(validation.errors.join("; "));
-  const entries = [];
-  for (const [artifactPath, type, columns, key] of artifactDefinitions) {
-    entries.push(await store.writeArtifact(artifactPath, serializeCsv(columns, bundle[key]), {
-      type,
-      mediaType: "text/csv",
-    }));
-  }
-  entries.push(await store.writeArtifact(
-    "plan/test-data-prerequisites.md",
-    `# Test Data Prerequisites\n\n${bundle.test_data_prerequisites.map((item) => `- ${item}`).join("\n")}\n`,
-    { type: "plan.test-data", mediaType: "text/markdown" },
-  ));
-  entries.push(await store.writeArtifact(
-    "plan/rationale.md",
-    `# Technique and Heuristic Rationale\n\n${bundle.heuristics.map((item) => `## ${item.name}\n\n${item.selected ? "Selected" : "Not selected"}: ${item.rationale}`).join("\n\n")}\n`,
-    { type: "plan.rationale", mediaType: "text/markdown" },
-  ));
-  entries.push(await store.writeArtifact(
-    "plan/metrics.json",
-    `${canonicalJson(planMetrics(bundle))}\n`,
-    { type: "plan.metrics", mediaType: "application/json" },
-  ));
-  return entries;
+  return Promise.all([
+    store.writeArtifact("plan/plan.json", `${canonicalJson(bundle)}\n`, { type: "plan.document", mediaType: "application/json" }),
+    store.writeArtifact("plan/summary.md", planMarkdown(bundle), { type: "plan.summary", mediaType: "text/markdown" }),
+  ]);
 }
 
 export const PLAN_REQUIRED_ARTIFACTS = Object.freeze([
-  ...artifactDefinitions.map(([artifactPath]) => artifactPath),
-  "plan/test-data-prerequisites.md",
-  "plan/rationale.md",
-  "plan/metrics.json",
+  "plan/plan.json",
+  "plan/summary.md",
 ]);
