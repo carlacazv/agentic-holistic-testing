@@ -34,14 +34,16 @@
   "scripts": {
     "build:codex": "node scripts/build-adapter.mjs codex",
     "build:claude": "node scripts/build-adapter.mjs claude",
+    "build:docs": "node scripts/build-docs-site.mjs",
     "test": "node --test test/*.test.mjs",
     "test:playwright:fixture": "playwright test --config test/fixtures/playwright/playwright.config.ts --repeat-each=3 --retries=0",
     "test:performance:fixture": "node scripts/run-performance-fixture.mjs",
     "validate:adapter": "node scripts/build-adapter.mjs codex --check && node scripts/build-adapter.mjs claude --check",
+    "validate:docs": "npm run build:docs && node scripts/validate-docs-site.mjs",
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "scan": "node scripts/scan-contamination.mjs",
     "validate:openspec": "openspec validate --all --strict --no-interactive && openspec validate --archived --strict --no-interactive",
-    "validate": "npm run validate:schemas && npm test && npm run test:playwright:fixture && npm run test:performance:fixture && npm run validate:adapter && npm run validate:openspec && npm run scan"
+    "validate": "npm run validate:schemas && npm test && npm run validate:docs && npm run test:playwright:fixture && npm run test:performance:fixture && npm run validate:adapter && npm run validate:openspec && npm run scan"
   },
   "license": "MIT"
 }
