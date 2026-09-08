@@ -56,6 +56,10 @@ in their change files.
   prerequisites. Do not expand it into the full quality cycle.
 - Calibrate verification to the changed behavior. Run required and risk-based
   checks once; repeat or broaden them only to resolve an observed risk.
+- Treat the Playwright generation instructions, implementation schema, AST
+  validator, local architecture fixture, and Planning Poker golden benchmark as
+  one contract. A change to one must keep the others aligned and pass both the
+  structural regression and the relevant external benchmark gate.
 
 ## Repository workflow
 

@@ -1,5 +1,6 @@
 import { defineConfig } from "@playwright/test";
 import { existsSync } from "node:fs";
+import { appConfig } from "./config/app";
 
 const systemChrome = "/usr/bin/google-chrome";
 const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH ?? (existsSync(systemChrome) ? systemChrome : undefined);
@@ -18,7 +19,9 @@ export default defineConfig({
     ["junit", { outputFile: "../../../test-results/playwright-fixture/results.xml" }]
   ],
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL: appConfig.baseURL,
+    locale: appConfig.locale,
+    timezoneId: appConfig.timezoneId,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -26,7 +29,7 @@ export default defineConfig({
   },
   webServer: {
     command: "node ../web-app/server.mjs",
-    url: "http://127.0.0.1:4173",
+    url: appConfig.baseURL,
     reuseExistingServer: false,
     timeout: 10_000
   }

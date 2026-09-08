@@ -5,11 +5,15 @@ import { buildAdapter } from "../scripts/build-adapter.mjs";
 import { canonicalJson } from "./core/canonical.mjs";
 import { validateArtifactFiles, validateRunDirectory } from "./core/artifacts.mjs";
 import { resolveBrowserCapability } from "./core/browser.mjs";
+import { SCHEMA_IDS } from "./core/constants.mjs";
+import { diagnoseWorkspace } from "./core/doctor.mjs";
 import { createRunId, validateRunId } from "./core/ids.mjs";
 import { evaluateCapability } from "./core/permissions.mjs";
 import { validateDocument } from "./core/validation.mjs";
-import { diagnoseWorkspace } from "./core/doctor.mjs";
-import { verificationFromPlaywrightReport } from "./stages/implement-playwright.mjs";
+import {
+  validatePlaywrightImplementation,
+  verificationFromPlaywrightReport,
+} from "./stages/implement-playwright.mjs";
 import { completeCycleStep, createCycleState, nextCycleStep, summarizeCycle, validateCycleState } from "./workflows/cycle.mjs";
 
 async function readJson(filePath) {
@@ -71,7 +75,10 @@ async function main([command, ...args]) {
     return 0;
   }
   if (command === "validate" && args.length === 2) {
-    const result = validateDocument(args[0], await readJson(args[1]));
+    const document = await readJson(args[1]);
+    const result = ["playwright-implementation", SCHEMA_IDS["playwright-implementation"]].includes(args[0])
+      ? validatePlaywrightImplementation(document)
+      : validateDocument(args[0], document);
     output(result);
     return result.valid ? 0 : 1;
   }

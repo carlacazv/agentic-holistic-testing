@@ -23,6 +23,7 @@ export const SCHEMA_IDS = Object.freeze({
   "artifact-index": "urn:holistic-qa:schema:v1:artifact-index",
   error: "urn:holistic-qa:schema:v1:error",
   "execution-context": "urn:holistic-qa:schema:v1:execution-context",
+  "playwright-implementation": "urn:holistic-qa:schema:v1:playwright-implementation",
   "return-envelope": "urn:holistic-qa:schema:v1:return-envelope",
 });
 

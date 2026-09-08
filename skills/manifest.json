@@ -23,7 +23,7 @@
       "id": "implement-playwright",
       "track": "pipeline",
       "requires": ["automation-strategy"],
-      "description": "Implement only approved Playwright API and browser candidates as verified TypeScript tests without accepted flakiness."
+      "description": "Implement approved Playwright candidates with versioned architecture, fixture injection, typed data, traceability, cleanup, and AST-validated evidence."
     },
     {
       "id": "explore",
