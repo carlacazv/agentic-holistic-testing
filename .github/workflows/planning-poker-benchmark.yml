@@ -2,16 +2,52 @@ name: Planning Poker benchmark
 
 on:
   pull_request:
-    paths:
-      - 'benchmarks/planning-poker/**'
-      - '.github/workflows/planning-poker-benchmark.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: planning-poker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      benchmark: ${{ steps.filter.outputs.benchmark }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect Playwright contract changes
+        id: filter
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "benchmark=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- \
+            benchmarks/planning-poker \
+            .github/workflows/planning-poker-benchmark.yml \
+            skills/holistic-qa/implement-playwright \
+            schemas/v1/playwright-implementation.schema.json \
+            src/core/typescript-ast.mjs \
+            src/stages/implement-playwright.mjs \
+            test/implement-playwright.test.mjs \
+            package.json \
+            package-lock.json; then
+            echo "benchmark=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "benchmark=true" >> "$GITHUB_OUTPUT"
+          fi
+
   e2e:
+    needs: changes
+    if: needs.changes.outputs.benchmark == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -79,3 +115,25 @@ jobs:
             subject/test-results
             subject/playwright-report
           if-no-files-found: warn
+
+  required:
+    name: required
+    needs: [changes, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce relevant benchmark result
+        env:
+          BENCHMARK_REQUIRED: ${{ needs.changes.outputs.benchmark }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+        run: |
+          if [[ "$CHANGES_RESULT" != "success" ]]; then
+            echo "Change detection failed."
+            exit 1
+          fi
+          if [[ "$BENCHMARK_REQUIRED" == "true" && "$E2E_RESULT" != "success" ]]; then
+            echo "The Planning Poker benchmark was required but did not pass."
+            exit 1
+          fi
+          echo "Planning Poker contract gate passed."

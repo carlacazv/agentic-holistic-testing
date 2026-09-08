@@ -40,7 +40,7 @@ Run the pipeline in order - each step consumes the checksum-valid run the previo
 | 1 | `plan` | Risk-scored, technique-driven test plan. Every requirement and risk is test-linked or explicitly disposed as deferred, waived, externally covered, or not testable, with rationale. |
 | 2 | `review-plan` | Reviews a checksum-valid plan run and reports the findings in the conversation. You choose to apply them, add them as a complement that only extends the plan, or neither - a review you do not act on writes nothing. A resolved finding with no linked modification, or any metric regression, is rejected. |
 | 3 | `automation-strategy` | Recommends the lowest effective level per case (unit, component, API, browser E2E, manual) and emits an approval-gated Playwright candidate list. Never generates code. |
-| 4 | `implement-playwright` | Turns approved candidates into TypeScript tests under `tests/<feature>/` with every page and component object in `tests/pom/`, using Given/When describes and Should steps. Records whether each locator was confirmed against a running target or inferred. Requires three zero-retry repetitions with no flaky outcome. |
+| 4 | `implement-playwright` | Turns approved candidates into a versioned, layered Playwright suite: central fixture injection, POM/COM separation, typed factories and static data, per-test tags and case annotations, explicit cleanup, pinned config, and lint/type-check/execution gates. Its AST validator rejects architectural drift before evidence can be finalized; the Planning Poker suite is the golden regression benchmark. |
 
 Independent audits need an authorized target environment rather than a plan, and run in any order:
 
@@ -84,6 +84,17 @@ Playwright verification is imported from its JSON reporter rather than authored 
 ```sh
 holistic-qa import-playwright implementation.json playwright-report.json "npm run test:e2e"
 ```
+
+### Preventing Playwright architecture drift
+
+The implementation standard is enforced at several boundaries: the installable skill guides generation, the JSON Schema defines the manifest, the AST validator checks executable TypeScript, unit regressions reject known bad architectures, and the corrected Planning Poker suite is loaded as a golden fixture. Relevant contract changes also run that suite against the external Planning Poker repository three times with zero retries.
+
+To make those controls mandatory on `main`, configure a GitHub branch ruleset that requires pull requests and these status checks:
+
+- `Quality contract / validate`
+- `Planning Poker benchmark / required`
+
+The stable `required` benchmark job reports on every pull request; it only waits for the expensive external E2E job when contract-related paths changed. Disable direct pushes and bypasses for the actors that must follow the policy. Repository workflows detect violations, while the branch ruleset is what prevents a failing or missing check from being bypassed at merge time.
 
 ## Safety gates
 

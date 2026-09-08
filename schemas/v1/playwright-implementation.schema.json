@@ -3,5 +3,141 @@
   "$id": "urn:holistic-qa:schema:v1:playwright-implementation",
   "title": "Holistic QA Playwright implementation",
   "type": "object",
-  "required": ["candidates", "files", "configuration", "ci_integration", "findings", "verification_results"]
+  "additionalProperties": false,
+  "required": ["architecture", "candidates", "files", "configuration", "ci_integration", "findings", "verification_results"],
+  "properties": {
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["standard_version", "profile", "fixture_import", "test_structure"],
+      "properties": {
+        "standard_version": { "const": 1 },
+        "profile": { "enum": ["agentic-playwright", "repository-native"] },
+        "fixture_import": { "type": "string", "pattern": "\\.ts$" },
+        "test_structure": { "enum": ["given-when-should", "given-when-then", "repository-native"] },
+        "rationale": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "profile": { "const": "agentic-playwright" } } },
+          "then": { "properties": { "fixture_import": { "pattern": "^fixtures/.+\\.ts$" } } }
+        },
+        {
+          "if": { "properties": { "profile": { "const": "repository-native" } } },
+          "then": { "required": ["rationale"] }
+        }
+      ]
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["test_case_id", "decision", "approved", "recommended_level"],
+        "properties": {
+          "test_case_id": { "type": "string", "minLength": 1 },
+          "decision": { "const": "automate" },
+          "approved": { "const": true },
+          "recommended_level": { "enum": ["api", "browser-e2e"] }
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "source"],
+        "properties": {
+          "path": { "type": "string", "pattern": "\\.ts$" },
+          "kind": { "enum": ["spec", "page-object", "component-object", "fixture", "factory", "static-data", "enum", "config"] },
+          "source": { "type": "string", "minLength": 1 },
+          "candidate_ids": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+          "expected_tests": { "type": "integer", "minimum": 1 },
+          "mutates_state": { "type": "boolean" },
+          "cleanup_strategy": { "enum": ["not-required", "after-each", "after-all", "fixture"] },
+          "cleanup_file": { "type": "string", "pattern": "\\.ts$" },
+          "ui_abstraction": { "enum": ["page-object", "component-object"] },
+          "ui_abstraction_paths": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "\\.(?:page|component)\\.ts$" } },
+          "ui_abstraction_rationale": { "type": "string", "minLength": 1 },
+          "locator_evidence": { "enum": ["live-snapshot", "inferred"] }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "kind": { "const": "spec" } }, "required": ["kind"] },
+            "then": { "required": ["candidate_ids", "expected_tests", "mutates_state", "cleanup_strategy"] }
+          },
+          {
+            "if": { "properties": { "cleanup_strategy": { "const": "fixture" } }, "required": ["cleanup_strategy"] },
+            "then": { "required": ["cleanup_file"] }
+          }
+        ]
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reporters", "artifacts", "quality_gates", "locale", "timezone", "playwright_version"],
+      "properties": {
+        "reporters": { "type": "array", "uniqueItems": true, "items": { "enum": ["html", "json", "junit"] }, "allOf": [{ "contains": { "const": "html" } }, { "contains": { "const": "json" } }, { "contains": { "const": "junit" } }] },
+        "artifacts": { "type": "array", "uniqueItems": true, "items": { "enum": ["trace", "screenshot", "video"] }, "allOf": [{ "contains": { "const": "trace" } }, { "contains": { "const": "screenshot" } }, { "contains": { "const": "video" } }] },
+        "quality_gates": { "type": "array", "uniqueItems": true, "items": { "enum": ["lint", "typecheck", "playwright"] }, "allOf": [{ "contains": { "const": "lint" } }, { "contains": { "const": "typecheck" } }, { "contains": { "const": "playwright" } }] },
+        "locale": { "type": "string", "minLength": 1 },
+        "timezone": { "type": "string", "minLength": 1 },
+        "playwright_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" }
+      }
+    },
+    "ci_integration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "commands"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "commands": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lint", "typecheck", "playwright"],
+          "properties": {
+            "lint": { "type": "string", "minLength": 1 },
+            "typecheck": { "type": "string", "minLength": 1 },
+            "playwright": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "category", "target", "summary", "source_change_approved"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "category": { "enum": ["locator", "exclusion"] },
+          "target": { "type": "string", "minLength": 1 },
+          "summary": { "type": "string", "minLength": 1 },
+          "source_change_approved": { "type": "boolean" }
+        }
+      }
+    },
+    "verification_results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tests", "repetitions", "retries", "passed", "failed", "flaky", "skipped", "executed_command", "report_checksum", "source_checksum", "evidence_source"],
+      "properties": {
+        "tests": { "type": "integer", "minimum": 1 },
+        "repetitions": { "type": "integer", "minimum": 3 },
+        "retries": { "const": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "flaky": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "executed_command": { "type": "string", "minLength": 1 },
+        "report_checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "source_checksum": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "evidence_source": { "const": "playwright-json" }
+      }
+    }
+  }
 }

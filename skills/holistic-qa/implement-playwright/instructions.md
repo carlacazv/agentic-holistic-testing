@@ -1,101 +1,132 @@
 # Holistic QA Implement Playwright
 
-Implement only checksum-valid automation-strategy rows that are `automate`, explicitly approved, and recommended at API or browser E2E. Validate target environment permissions before any state-changing execution. Do not generate code for unapproved rows. Application-source changes require separate explicit approval.
+Implement only checksum-valid automation-strategy rows that are `automate`, explicitly approved, and recommended at API or browser E2E. Validate target-environment permissions before state-changing execution. Never generate code for unapproved rows. Application-source changes require separate explicit approval.
 
-## Test structure
+The runtime contract is authoritative. Build the complete manifest, run `validatePlaywrightImplementation`, execute the declared quality commands, import the Playwright JSON report, and validate again before claiming completion. Do not weaken a rule to make generated code pass.
 
-Express every test as Given / When / Should, so the suite reads as declared behavior and a failure names the exact expectation that broke.
+## Architecture preflight
 
-- `test.describe("Given <precondition or context>")` states the world before the action. Nest a second `test.describe("Given ...")` only when a genuinely narrower precondition applies.
-- `test.describe("When <single action under test>")` states the action. One `When` block covers one action; a second action means a second `When` block or a separate test.
-- `test.step("Should <observable outcome>")` wraps each assertion group. Step titles are outcomes in the product's language, never mechanics: `Should show the confirmation banner`, not `Should check the div`.
-- Preserve the planned case ID in the `test()` title or as an annotation so plan traceability survives into reports.
+Inspect the target repository before writing a spec: package manager, Playwright version, existing config, TypeScript settings, lint/type-check commands, test directories, fixtures, page/component objects, data builders, environment handling, and CI. Reuse an equivalent native convention when it already provides the same separation and controls; otherwise use the default layout below.
 
-Map Arrange-Act-Assert onto that structure and keep the three phases separate and ordered:
+Declare one architecture profile in the manifest:
 
-- **Arrange** belongs to the `Given` scope: fixtures, `beforeEach`, and deterministic data setup. Never assert here except an explicit precondition guard.
-- **Act** is the single action the `When` block names, executed once at the top of the test body.
-- **Assert** happens only inside `Should` steps. Do not perform new actions after the first assertion; a further action means a new `When` block or a new test.
+- `agentic-playwright` is the default. It uses the canonical layered paths and a central fixture assembled with `mergeTests`.
+- `repository-native` preserves an established, structurally equivalent repository layout. It requires a concrete `rationale`; convenience or fewer files is not equivalence.
+
+Also declare `standard_version: 1`, a single `fixture_import`, and one `test_structure`: `given-when-then`, `given-when-should`, or `repository-native`. Prefer `given-when-then` for new suites. This presentation choice is configurable; isolation, traceability, dependency injection, typed data, locator quality, and verification are not.
+
+## Canonical layout
+
+Under `agentic-playwright`, place files at:
+
+| Concern | Path |
+| --- | --- |
+| API spec | `tests/<area>/api/<name>.spec.ts` |
+| Browser journey | `tests/<area>/e2e/<name>.spec.ts` |
+| Focused browser behavior | `tests/<area>/functional/<name>.spec.ts` |
+| Page object | `pages/<area>/<name>.page.ts` |
+| Shared component object | `pages/components/<name>.component.ts` or `pages/<area>/components/<name>.component.ts` |
+| API/helper/POM fixture | `fixtures/<api|helper|pom>/<name>.ts` |
+| Generated mutable data | `test-data/factories/<area>/<name>.factory.ts` |
+| Immutable case table | `test-data/static/<area>/<name>.ts` |
+| Routes, labels, domain values | `enums/<area>/<name>.ts` |
+| Environment configuration | `config/<name>.ts` |
+| Playwright configuration | `playwright.config.ts` |
+
+Every manifest file declares its `kind`: `spec`, `page-object`, `component-object`, `fixture`, `factory`, `static-data`, `enum`, or `config`.
+
+## Fixture composition and dependency injection
+
+Create small fixture layers by responsibility and merge them through the declared central fixture, normally `fixtures/pom/test-options.ts`. Every spec imports both `test` and `expect` from that file. A direct spec import from `@playwright/test` is invalid.
+
+Instantiate page and component objects in fixtures and inject them into tests. Specs must not call `new SomePage(page)`. Multi-user browser contexts, authenticated sessions, clocks, network doubles, and lifecycle cleanup belong in fixtures so creation and disposal cannot drift apart. Specs must not call `browser.newContext()`.
+
+Page and component objects expose typed locators and user actions. They contain no assertions and no tests. Prefer composition over inheritance, and split objects that branch according to the calling test.
+
+## Traceable test contract
+
+Every `test()` has exactly one supported tag: `@smoke`, `@sanity`, `@regression`, `@e2e`, `@api`, or `@destructive`. Put tags on tests, never on `test.describe`. Every test also has a `test_case` annotation whose description is the planned case ID.
 
 ```ts
+import { expect, test } from "../../../fixtures/pom/test-options";
+import { createCartScenario } from "../../../test-data/factories/cart/cart.factory";
+
 test.describe("Given an authenticated shopper with an empty cart", () => {
-  test.beforeEach(async ({ request }) => {
-    await resetCart(request); // Arrange
-  });
+  test.afterEach(async ({ cartCleanup }) => cartCleanup.run());
 
-  test.describe("When adding an in-stock item", () => {
-    test("case-042 adds the item to the cart", async ({ page, cart }) => {
-      await cart.addItem("Blue mug"); // Act
+  test(
+    "adds an in-stock item",
+    {
+      tag: "@e2e",
+      annotation: { type: "test_case", description: "case-042" },
+    },
+    async ({ cartPage, cartCleanup }, testInfo) => {
+      const scenario = createCartScenario(testInfo.repeatEachIndex);
+      cartCleanup.track(scenario.cartId);
 
-      await test.step("Should list the item in the cart", async () => {
-        await expect(page.getByRole("listitem", { name: "Blue mug" })).toBeVisible();
+      await test.step("WHEN the shopper adds the item", async () => {
+        await cartPage.addItem(scenario.itemName);
       });
 
-      await test.step("Should increment the cart count to 1", async () => {
-        await expect(page.getByRole("status", { name: "Cart count" })).toHaveText("1");
+      await test.step("THEN the cart shows the item and updated count", async () => {
+        await expect(cartPage.item(scenario.itemName)).toBeVisible();
+        await expect(cartPage.count).toHaveText("1");
       });
-    });
-  });
+    },
+  );
 });
 ```
 
-## Keep it DRY without hiding behavior
+For `given-when-then`, step titles begin with Given, When, or Then. For `given-when-should`, describe titles begin with Given or When and each assertion step begins with Should. In every profile, assertions belong inside `test.step`, and titles describe observable product behavior rather than DOM mechanics.
 
-Extract a helper, fixture, or page object when a locator chain or flow is repeated across tests or specs. Build test data through deterministic factories with explicit overrides rather than duplicated literals. Put shared setup in a fixture or `beforeEach` owned by the `Given` block it belongs to.
+Keep Arrange, Act, and Assert distinguishable. Setup belongs to fixtures or the Given scope; perform the action once; keep expectations in outcome steps. Do not hide the action and its assertions together inside a helper.
 
-Do not abstract past the point of readability. The Act and the assertions stay visible in the test body: a helper that performs the action under test and its assertions makes failures unattributable. Shared helpers must not contain assertions belonging to a single test, must not branch on which test called them, and must not carry state between tests.
+## Data, state, and cleanup
 
-## Choosing page or component objects
+Generated mutable data comes from a typed deterministic factory with explicit overrides and a run-scoped unique key. Immutable boundary tables come from typed TypeScript static-data modules, never imported JSON. Reusable routes, stable UI text, and domain values live in enums. Do not use `any`.
 
-Every spec covering a browser candidate declares `ui_abstraction` as `page-object` or `component-object`, and the object it names is provided. There is no inline option: a single approved candidate gets its object like any other, because the cost of the extra file is one file and the cost of locators living in specs is every spec that later touches the same surface. Decide which of the two per browser spec, from the approved candidates and the surfaces they traverse, and record why.
+Every spec declares `expected_tests`, `mutates_state`, and `cleanup_strategy`. A mutating spec must import a declared factory and use one enforceable strategy: `after-each`, `after-all`, or a named lifecycle `fixture`. Prefer API or persistence cleanup over UI cleanup and execute it even after a failed assertion. A read-only spec declares `not-required`.
 
-- **API candidates take no UI abstraction.** Request-context tests address the HTTP boundary directly; a page object there is indirection with no reuse.
-- **Page object (POM)** — when more than one approved browser candidate traverses the same route or flow, or when the strategy scored that surface as low `stability`, so churn should hit one file instead of every spec. Model one object per route or per coherent flow.
-- **Component object (COM)** — when the recurring surface is a widget reused across several routes or flows rather than a page: a design-system control, a shared table, a date picker, a modal. The signal is repetition across the approved browser specs: the same widget's locators are needed under more than one route or flow, so the abstraction follows the widget rather than whichever page it happens to sit on. Compose it into the page objects that use it. Strategy rows carry no component signal here — a case whose confidence is equivalent at component level is recommended and covered at that level, and never becomes a Playwright candidate.
-
-Prefer composing component objects inside page objects over deep page-object inheritance. Objects expose locators and actions only: they must contain no assertions and declare no tests, so every expectation stays in a `Should` step where a failure names it. Objects that grow branching logic about what the caller wants are a signal to split them.
+No test depends on execution order, shared residue, a shared mutable account, or the machine clock. If serialization is genuinely required, record why. Configuration owns absolute URLs and environment lookup; specs and support modules use relative routes or injected configuration.
 
 ## Locators and assertions
 
-Use TypeScript and the target repository's native Playwright patterns. Prefer Playwright request contexts for API candidates: validate observable status, body, and contract, isolate state, and do not open a browser when request-level coverage gives equivalent confidence.
+Browser locators live only in page or component objects. Prefer `getByRole`, `getByLabel`, and other accessible user-facing locators, with retrying web-first assertions in specs. A test ID, CSS/XPath selector, or positional locator requires a `locator` finding tied to the exact file and a reason accessible behavior is insufficient. Record locator evidence as `live-snapshot` or `inferred`; inferred evidence remains a completion gap.
 
-For browser candidates prefer `getByRole`, `getByLabel`, and other accessible user-facing locators with web-first assertions. A test ID or CSS/XPath selector requires a locator/testability finding explaining why accessible behavior is insufficient.
+API candidates use Playwright request context directly and validate observable status, body, and contract. Do not open a browser when API coverage provides equivalent confidence.
 
 ## Flake prevention
 
-Flakiness is a defect in the test, not a tolerated cost. Every generated test must be deterministic under repeated parallel execution.
+Flakiness is a defect. Reject these patterns:
 
-Prohibited, with the required replacement:
+- Fixed waits (`waitForTimeout`, `setTimeout`, sleep) instead of a concrete response, locator, or web-first assertion.
+- `waitForLoadState("networkidle")` instead of the exact readiness signal.
+- Cached element handles instead of locators.
+- Sampled booleans such as `expect(await locator.isVisible()).toBe(true)` instead of retrying assertions.
+- Conditional assertions or `try/catch` that permits an expected outcome to disappear.
+- `.first()`, `.last()`, or `.nth()` used only to silence strict-mode ambiguity.
+- Blanket timeout increases, manual polling loops, shared mutable state, and timing-dependent assertions.
+- `test.only` or `test.describe.only` under any circumstance.
+- Skip, fixme, or suite exclusion without an `exclusion` finding containing the reason and unblocker.
 
-- Fixed waits (`waitForTimeout`, `setTimeout`, `sleep`) → a web-first assertion that auto-retries, or a wait for the specific response or element that gates the next step.
-- `waitForLoadState("networkidle")` → wait for the concrete element or the exact request the test depends on.
-- Manual polling loops and `while` retries → `expect.poll` or `expect(...).toPass()` with an explicit timeout and a stated reason.
-- Reading state then asserting (`const visible = await x.isVisible(); expect(visible).toBe(true)`) → `await expect(x).toBeVisible()`, so Playwright retries the assertion instead of sampling once.
-- Conditional assertions (`if (await x.isVisible()) { ... }`) and `try/catch` around assertions → assert the expected outcome unconditionally; a genuinely optional outcome is a missing precondition, so fix the Arrange.
-- `.first()`, `.last()`, or `.nth()` used to escape a strict-mode ambiguity → narrow the locator so it resolves to exactly one element; positional access is acceptable only when position is the behavior under test.
-- Cached `elementHandle` references → locators, which re-query on use and survive re-renders.
-- Blanket `test.setTimeout` or raised global timeouts to make a test pass → find the real wait condition.
+Retries stay at zero. Do not quarantine a failure to manufacture a green run.
 
-Required for isolation and determinism:
+## Configuration, CI, and evidence
 
-- Each test creates the data it needs with a run-scoped unique key and cleans up through the API, never through the UI, and never depends on another test's residue or on execution order.
-- No shared mutable state, account, or record between tests that run in parallel. If serialization is genuinely required, declare it explicitly and record why.
-- Pin timezone and locale in the configuration. Inject or freeze dates rather than asserting against the machine clock.
-- Stub or await the exact network calls the assertion depends on; never rely on request ordering or on incidental timing.
-- Do not assert on animation-dependent intermediate states; assert the settled outcome.
-- Never mark a test skipped, quarantined, or retried to get a green run. Any exclusion requires a recorded finding with rationale and an unblocker, at test or suite level (`test.skip`, `test.fixme`, `test.describe.skip`).
-- `test.only` and `test.describe.only` are rejected outright: a focused run drops every other test while the repetition evidence still reads green.
+Pin the exact Playwright semantic version. Pin locale and timezone. Configure HTML, JSON, and JUnit reporters plus trace, screenshot, and video retention for failures. Declare and execute separate lint, TypeScript, and Playwright commands; the declared Playwright command and imported command must match exactly.
 
-## Configuration and verification
+Run the approved suite at least three times with zero retries and a Playwright JSON reporter. Import the report with:
 
-Configure HTML, JSON, and JUnit reports plus trace, screenshot, and video capture for failures. `test.step` boundaries must remain visible in the report and trace so a failure is attributable to its `Should`. Add CI integration using the verified public npm registry.
+```sh
+holistic-qa import-playwright implementation.json playwright-report.json "<declared-playwright-command>"
+```
 
-Execute the approved suite at least three times with zero retries and a Playwright JSON reporter. Import that report with `holistic-qa import-playwright <manifest.json> <playwright-report.json> <executed-command>`; do not author `verification_results` by hand. The importer binds the raw report checksum, executed command, and implementation source checksum. Preserve failures as product verification evidence. Flaky, skipped, missing, stale, or source-mismatched evidence prevents a conclusive verification result.
+Never author `verification_results` by hand. The importer binds the raw report checksum, executed command, and checksum of architecture, candidates, configuration, CI, paths, kinds, and sources. Preserve failed product assertions as valid evidence. Flaky, skipped, missing, under-counted, or stale evidence prevents a conclusive result.
 
 ## Return
 
-Return the approved TypeScript tests, fixtures, Playwright configuration, CI integration, locator/testability findings, and imported verification results in the single canonical `implement-playwright/implementation.json` and readable `implement-playwright/summary.md`, plus foundation controls. Do not persist separate findings or verification copies.
+Return the complete implementation in `implement-playwright/implementation.json` and the readable `implement-playwright/summary.md`, plus foundation controls. Include every generated or changed TypeScript file in the manifest, not only specs. Browser specs declare `ui_abstraction` and every referenced `ui_abstraction_path`.
 
-Each manifest file entry declares its `kind` (`spec`, `page-object`, or `component-object`; `spec` when omitted), sits at the path its kind requires, and declares `locator_evidence` when it holds locators. Every spec covering a browser candidate also declares `ui_abstraction` as the page or component object it uses. The manifest declares at least one approved candidate, at least one spec, and a `verification_results.tests` count that is a positive integer covering every declared spec, so an empty or under-executed run cannot reach `completed`. `validatePlaywrightImplementation` enforces the structure, flake, and abstraction rules above and rejects the implementation before any artifact is written, so a deviation that is genuinely correct must be justified through a finding rather than by loosening the code: category `locator` covers a structural or positional selector, and category `exclusion` covers a skipped test.
+Before writing artifacts, the validator must accept the manifest. The validator parses TypeScript structurally; comments and string lookalikes do not satisfy code rules. A deviation that is genuinely necessary is represented by the narrow supported finding, never by silently bypassing validation.
 
-Return `blocked` for missing approval, environment, browser, credentials, or test data when no useful implementation can proceed. Return `partial` when a valid subset is implemented and every excluded candidate is explicit. Keep workflow status separate from verification status: completed implementation work may correctly report failed product assertions.
+Return `blocked` for missing approval, environment, browser, credentials, or test data when no useful implementation can proceed. Return `partial` when a valid subset is implemented and all exclusions are explicit. Keep workflow status separate from verification status: completed implementation work may correctly report failed product assertions.
