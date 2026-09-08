@@ -45,6 +45,17 @@ test("CLI validates documents and uses deterministic JSON output", async (t) => 
   assert.equal(result.stdout, '{"errors":[],"valid":true}\n');
 });
 
+test("CLI exposes the executable Playwright architecture validator", async (t) => {
+  const directory = await fixtureDirectory(t);
+  const file = path.join(directory, "implementation.json");
+  await writeFile(file, "{}\n");
+  const result = run("validate", "playwright-implementation", file);
+  assert.equal(result.status, 1);
+  const validation = JSON.parse(result.stdout);
+  assert.equal(validation.valid, false);
+  assert.ok(validation.errors.includes("/architecture/standard_version: expected 1"));
+});
+
 test("CLI returns distinct denial and argument exit codes", async (t) => {
   const directory = await fixtureDirectory(t);
   const contextFile = path.join(directory, "context.json");

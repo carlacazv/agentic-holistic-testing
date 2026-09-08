@@ -2,7 +2,7 @@
 
 Implement only checksum-valid automation-strategy rows that are `automate`, explicitly approved, and recommended at API or browser E2E. Validate target-environment permissions before state-changing execution. Never generate code for unapproved rows. Application-source changes require separate explicit approval.
 
-The runtime contract is authoritative. Build the complete manifest, run `validatePlaywrightImplementation`, execute the declared quality commands, import the Playwright JSON report, and validate again before claiming completion. Do not weaken a rule to make generated code pass.
+The runtime contract is authoritative. Build the complete manifest, run `holistic-qa validate playwright-implementation <manifest.json>`, execute the declared quality commands, import the Playwright JSON report, and validate again before claiming completion. Do not weaken a rule to make generated code pass.
 
 ## Architecture preflight
 

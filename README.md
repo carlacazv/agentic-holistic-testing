@@ -82,7 +82,9 @@ A completed run requires a non-empty artifact contract and cannot be silently re
 Playwright verification is imported from its JSON reporter rather than authored as a claim:
 
 ```sh
+holistic-qa validate playwright-implementation implementation.json
 holistic-qa import-playwright implementation.json playwright-report.json "npm run test:e2e"
+holistic-qa validate playwright-implementation implementation-with-evidence.json
 ```
 
 ### Preventing Playwright architecture drift

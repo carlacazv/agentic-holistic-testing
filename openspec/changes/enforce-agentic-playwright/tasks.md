@@ -4,6 +4,7 @@
 - [x] 1.2 Add a pinned TypeScript parser and AST helpers for imports, calls, class declarations, object construction, strings, and properties.
 - [x] 1.3 Enforce canonical/profile-aware paths, central fixture composition, dependency injection, tags, annotations, test structure, factories, cleanup, locator ownership, and forbidden TypeScript patterns.
 - [x] 1.4 Expand the implementation checksum to cover architecture, candidate mapping, configuration, CI, paths, kinds, and sources.
+- [x] 1.5 Expose semantic Playwright manifest validation through the existing provider-neutral CLI.
 
 ## 2. Generation Guidance and Benchmarks
 
