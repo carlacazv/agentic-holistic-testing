@@ -46,7 +46,7 @@ assert.equal(
 assert.equal(planningPoker.execution.retries, 0, "the published baseline must not accept retries");
 
 const documentedPullRequests = projectData.history.flatMap((milestone) => milestone.pullRequests);
-assert.deepEqual(documentedPullRequests, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+assert.deepEqual(documentedPullRequests, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 assert.equal(projectData.skills.length, 9, "the current capability surface must list nine skills");
 
 for (const benchmark of projectData.benchmarks) {

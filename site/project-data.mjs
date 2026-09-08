@@ -235,6 +235,15 @@ export default Object.freeze({
       evidenceUrl: `${repositoryUrl}/pull/9`,
       outcome: "85 tests · two green merge gates",
     },
+    {
+      date: "08 Sep 2026",
+      title: "Evidence becomes public documentation",
+      summary:
+        "Benchmark results, limitations, architecture, and the project's evolution moved into a generated evidence ledger backed by one machine-readable source.",
+      pullRequests: [10],
+      evidenceUrl: `${repositoryUrl}/pull/10`,
+      outcome: "One source → static narrative + JSON snapshot",
+    },
   ],
   roadmap: [
     {
