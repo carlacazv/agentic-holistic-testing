@@ -12,4 +12,4 @@
 
 - [x] 3.1 Add deterministic build and documentation validation to the repository quality contract.
 - [x] 3.2 Add a least-privilege GitHub Pages workflow that validates pull requests and deploys from `main`.
-- [ ] 3.3 Run the documentation checks, full repository validation, and pull-request workflows before publication.
+- [x] 3.3 Run the documentation checks, full repository validation, and pull-request workflows before publication.
