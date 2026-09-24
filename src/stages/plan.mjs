@@ -9,6 +9,7 @@ export const PLAN_TECHNIQUES = Object.freeze([
   "scenario-testing",
   "pairwise-selection",
   "error-guessing",
+  "fault-injection",
 ]);
 
 export const COVERAGE_DISPOSITIONS = Object.freeze([
