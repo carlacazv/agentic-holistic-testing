@@ -4,6 +4,10 @@ A provider-neutral QA runtime and a set of independently callable skills, packag
 
 Available now: `plan`, `review-plan`, `automation-strategy`, `implement-playwright`, `explore`, `accessibility`, `performance`, `report`, and the optional `cycle` coordinator.
 
+## Project documentation
+
+The [Holistic QA evidence ledger](https://carlacazv.github.io/agentic-holistic-testing/) documents the verified baseline, Planning Poker consumer benchmark, architecture, project evolution, and next benchmark goals. Its facts live in `site/project-data.mjs`, are checked during `npm run validate`, and are published from `main` through GitHub Pages.
+
 ## Install
 
 Run this from the root of the project you want to test. No clone, no copy step. Needs Node.js 22 or later.

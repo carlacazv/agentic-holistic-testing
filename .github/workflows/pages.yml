@@ -1,0 +1,66 @@
+name: Project documentation
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/pages.yml
+      - package.json
+      - scripts/build-docs-site.mjs
+      - scripts/validate-docs-site.mjs
+      - site/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/pages.yml
+      - package.json
+      - scripts/build-docs-site.mjs
+      - scripts/validate-docs-site.mjs
+      - site/**
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Build and validate documentation
+        run: npm run validate:docs
+      - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v6
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: .site-dist
+
+  deploy:
+    name: deploy
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
