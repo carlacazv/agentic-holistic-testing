@@ -1,0 +1,7 @@
+#!/bin/bash
+#MISE description="Check Cook recipe drift and the committed Codex/Claude links"
+
+set -euo pipefail
+
+cook check
+sh .agents/skills/agents-layout/scripts/check.sh

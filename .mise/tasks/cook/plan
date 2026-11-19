@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Preview the agent configuration recorded in cook.lock"
+
+set -euo pipefail
+
+cook replicate --dry-run

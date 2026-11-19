@@ -140,12 +140,38 @@ await run.finalize({ skill: "plan", status: "completed", requiredArtifacts: ["pl
 ```sh
 git clone https://github.com/carlacazv/agentic-holistic-testing.git
 cd agentic-holistic-testing
-mise trust . && mise install   # Node 22, pinned in mise.toml
+mise trust . && mise install   # Node 22 and Cook 13.0.0, pinned in mise.toml
 mise run setup                 # npm ci, then build both provider layouts
 mise run validate:all          # or: npm run validate
 ```
 
-`mise tasks` lists every task with its description; each mirrors an npm script, and task scripts live at `.mise/tasks/<area>/<name>`. `validate:all` checks schemas, deterministic behavior, failure scenarios, both adapter builds against their provider-neutral source checksums, OpenSpec artifacts, registry isolation, and credential and contamination scans.
+`mise tasks` lists every task with its description; runtime tasks mirror npm scripts, and task scripts live at `.mise/tasks/<area>/<name>`. `validate:all` checks schemas, deterministic behavior, failure scenarios, both adapter builds against their provider-neutral source checksums, OpenSpec artifacts, registry isolation, and credential and contamination scans. Cook maintenance tasks are described below.
+
+### Agent configuration
+
+[The Cook](https://github.com/lmarqs/the-cook) manages this repository's shared Codex and Claude Code setup. The engine is pinned in `mise.toml`; `cook.lock` pins the `agents#seed` and `agents#connect` recipes at 13.0.0 and records both harnesses. The existing `AGENTS.md` and OpenSpec skills are preserved. This configures contributors' agents; the consumer QA installers and generated `dist/` packages keep their existing workflow.
+
+- `AGENTS.md`: repository instructions read by both agents (Claude Code 2.1.277 or newer).
+- `.agents/permission/policy.yaml`: shared command permissions; edit this source, then regenerate.
+- `.agents/adapters/`: native settings and rules rendered by Cook.
+- `.agents/skills/`: shared repository skills, including `agents-layout` and the existing OpenSpec skills.
+- `.claude/` and `.codex/`: committed relative links to the shared configuration.
+
+After editing the policy or restoring generated files:
+
+```sh
+mise run cook:plan       # Preview all recorded recipes without writing
+mise run cook:apply      # Apply the reviewed changes using cook.lock
+mise run validate:cook   # Check recipe drift and committed links
+```
+
+Stage new links before running the layout check, which reads Git's index. Commit the policy, generated files, links, and `cook.lock` together. CI runs `validate:cook` in the separate **Agent configuration** job; the Node validation pipeline remains usable without Cook. The `cook:*` and `validate:cook` tasks invoke Cook directly rather than npm scripts.
+
+The policy allows repository inspection and the named build, test, and validation commands. Publishing, pushing, merging PRs, and destructive Git commands require confirmation. Claude bypass mode is refused; auto mode is available for unlisted commands. Codex uses a workspace sandbox with network access disabled by default. These settings guide the agents; QA runtime capability approvals remain separate.
+
+Trust the project interactively in each agent before relying on project permissions. Review and accept Codex session hooks in the main checkout; changed hooks need renewed trust. Git must preserve symbolic links (`core.symlinks=true`); Windows checkouts need symlink support. The committed setup works without Cook installed; Cook is needed to regenerate it or check drift. See [.agents/README.md](.agents/README.md) for layout ownership and agent launch details.
+
+The bundled `agents-layout` skill and generated Cook resources come from [The Cook v13.0.0](https://github.com/lmarqs/the-cook/tree/v13.0.0), licensed under [Apache-2.0](.agents/licenses/the-cook-LICENSE). The project's own code remains MIT-licensed.
 
 ## Limitations
 

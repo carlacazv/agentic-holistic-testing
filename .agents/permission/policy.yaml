@@ -1,0 +1,23 @@
+# Shared contributor-agent policy. Edit here, then run mise run cook:plan and cook:apply.
+# Prefix rules also match additional arguments; these are trusted repository scripts.
+version: 2
+bypass: refuse
+auto: allow
+commands:
+  allow:
+    - [git, [status, diff, log, show, ls-files, rev-parse]]
+    - [git, branch, --show-current]
+    - [npm, ci]
+    - [npm, test]
+    - [npm, run, [build:codex, build:claude, build:docs, validate, validate:adapter, validate:docs, validate:schemas, validate:openspec, scan, test:playwright:fixture, test:performance:fixture]]
+    - [mise, run, [setup, build:all, build:codex, build:claude, test:all, test:unit, test:playwright, test:performance, validate:all, validate:adapter, validate:schemas, validate:openspec, validate:cook, scan, cook:plan, cook:apply]]
+    - [cook, [check, help, --version]]
+    - [sh, .agents/skills/agents-layout/scripts/check.sh]
+  # External publication and destructive operations require an explicit decision.
+  ask:
+    - [git, push]
+    - [npm, publish]
+    - [gh, pr, merge]
+    - [git, reset, --hard]
+    - [git, clean]
+  deny: []
