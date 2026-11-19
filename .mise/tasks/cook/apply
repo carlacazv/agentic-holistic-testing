@@ -1,0 +1,6 @@
+#!/bin/bash
+#MISE description="Apply the agent configuration recorded in cook.lock after reviewing cook:plan"
+
+set -euo pipefail
+
+cook replicate --batch-approve

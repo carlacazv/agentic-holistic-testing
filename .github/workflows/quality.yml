@@ -14,6 +14,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  agent-config:
+    name: Agent configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+        with:
+          install_args: "github:lmarqs/the-cook"
+      - run: mise run validate:cook
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 20

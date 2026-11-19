@@ -1,0 +1,67 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git ls-files *)",
+      "Bash(git rev-parse *)",
+      "Bash(git branch --show-current *)",
+      "Bash(npm ci *)",
+      "Bash(npm test *)",
+      "Bash(npm run build:codex *)",
+      "Bash(npm run build:claude *)",
+      "Bash(npm run build:docs *)",
+      "Bash(npm run validate *)",
+      "Bash(npm run validate:adapter *)",
+      "Bash(npm run validate:docs *)",
+      "Bash(npm run validate:schemas *)",
+      "Bash(npm run validate:openspec *)",
+      "Bash(npm run scan *)",
+      "Bash(npm run test:playwright:fixture *)",
+      "Bash(npm run test:performance:fixture *)",
+      "Bash(mise run setup *)",
+      "Bash(mise run build:all *)",
+      "Bash(mise run build:codex *)",
+      "Bash(mise run build:claude *)",
+      "Bash(mise run test:all *)",
+      "Bash(mise run test:unit *)",
+      "Bash(mise run test:playwright *)",
+      "Bash(mise run test:performance *)",
+      "Bash(mise run validate:all *)",
+      "Bash(mise run validate:adapter *)",
+      "Bash(mise run validate:schemas *)",
+      "Bash(mise run validate:openspec *)",
+      "Bash(mise run validate:cook *)",
+      "Bash(mise run scan *)",
+      "Bash(mise run cook:plan *)",
+      "Bash(mise run cook:apply *)",
+      "Bash(cook check *)",
+      "Bash(cook help *)",
+      "Bash(cook --version *)",
+      "Bash(sh .agents/skills/agents-layout/scripts/check.sh *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(npm publish *)",
+      "Bash(gh pr merge *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)"
+    ],
+    "deny": [],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.agents/hooks/session-start claude"
+          }
+        ]
+      }
+    ]
+  }
+}

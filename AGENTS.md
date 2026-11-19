@@ -68,3 +68,15 @@ in their change files.
 - Use focused, behavior-oriented commits with clear messages.
 - Inspect `git status` before staging, and verify the final diff and tests
   before committing or pushing.
+
+## Shared agent configuration
+
+- Cook 13.0.0 is pinned in `mise.toml`; `cook.lock` records the recipes for
+  both Codex and Claude Code. See [the maintenance workflow](README.md#agent-configuration).
+- Edit `.agents/permission/policy.yaml` for shared permissions, then preview
+  and apply with `mise run cook:plan` and `mise run cook:apply`.
+- Run `mise run validate:cook` when changing the layout or permissions.
+  Keep the generated adapters and the links in `.claude/` and `.codex/`
+  committed; keep runtime adapter builds under `dist/`.
+- Shared repository skills live in `.agents/skills/`. Consumer QA skills in
+  `skills/holistic-qa/` continue to use the existing adapter builder.

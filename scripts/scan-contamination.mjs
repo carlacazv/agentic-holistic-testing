@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { lstat, readFile, readlink } from "node:fs/promises";
 
 const tracked = execFileSync(
   "git",
@@ -15,7 +15,10 @@ const forbiddenWords = [
 const findings = [];
 
 for (const file of tracked) {
-  const buffer = await readFile(file);
+  // Git versions the link text, not its target, which may be a directory or outside the repository.
+  const buffer = (await lstat(file)).isSymbolicLink()
+    ? Buffer.from(await readlink(file))
+    : await readFile(file);
   if (buffer.includes(0)) continue;
   const text = buffer.toString("utf8");
   const lowered = text.toLowerCase();

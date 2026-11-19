@@ -1,0 +1,17 @@
+# cook:begin io.github.lmarqs.cookbook:agents#connect/commands
+# io.github.lmarqs.cookbook:agents#connect --harness=claude --harness=codex
+# bypass: refuse reaches Claude only: --ignore-rules or an untrusted project skips these rules, --approve-for-me approves prompts
+prefix_rule(pattern = ["git", ["status", "diff", "log", "show", "ls-files", "rev-parse"]], decision = "allow")
+prefix_rule(pattern = ["git", "branch", "--show-current"], decision = "allow")
+prefix_rule(pattern = ["npm", "ci"], decision = "allow")
+prefix_rule(pattern = ["npm", "test"], decision = "allow")
+prefix_rule(pattern = ["npm", "run", ["build:codex", "build:claude", "build:docs", "validate", "validate:adapter", "validate:docs", "validate:schemas", "validate:openspec", "scan", "test:playwright:fixture", "test:performance:fixture"]], decision = "allow")
+prefix_rule(pattern = ["mise", "run", ["setup", "build:all", "build:codex", "build:claude", "test:all", "test:unit", "test:playwright", "test:performance", "validate:all", "validate:adapter", "validate:schemas", "validate:openspec", "validate:cook", "scan", "cook:plan", "cook:apply"]], decision = "allow")
+prefix_rule(pattern = ["cook", ["check", "help", "--version"]], decision = "allow")
+prefix_rule(pattern = ["sh", ".agents/skills/agents-layout/scripts/check.sh"], decision = "allow")
+prefix_rule(pattern = ["git", "push"], decision = "prompt")
+prefix_rule(pattern = ["npm", "publish"], decision = "prompt")
+prefix_rule(pattern = ["gh", "pr", "merge"], decision = "prompt")
+prefix_rule(pattern = ["git", "reset", "--hard"], decision = "prompt")
+prefix_rule(pattern = ["git", "clean"], decision = "prompt")
+# cook:end io.github.lmarqs.cookbook:agents#connect/commands

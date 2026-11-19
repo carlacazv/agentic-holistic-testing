@@ -6,3 +6,19 @@ coverage/
 test-results/*
 *.log
 .claude/worktrees/
+# cook:begin io.github.lmarqs.cookbook:agents#connect/harnesses
+# io.github.lmarqs.cookbook:agents#connect --harness=claude --harness=codex
+!/.claude/
+/.claude/*
+!/.claude/settings.json
+!/.claude/skills
+!/.codex/
+/.codex/*
+!/.codex/config.toml
+!/.codex/hooks.json
+!/.codex/rules
+# Claude Code skips AGENTS.md while any of these exists, so they stay out of commits.
+CLAUDE.md
+CLAUDE.local.md
+**/.claude/CLAUDE.md
+# cook:end io.github.lmarqs.cookbook:agents#connect/harnesses

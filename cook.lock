@@ -1,0 +1,59 @@
+# Written by the-cook; do not edit by hand.
+version: 1
+recipes:
+  - name: "io.github.lmarqs.cookbook:agents#connect"
+    source: "io.github.lmarqs.cookbook:agents:13.0.0#connect"
+    sha256: "1f32f8eb5a0f69cafd524e5503a11c2afc5eda10feabccd81b3b53ae62645032"
+    arguments:
+      "harness": ["claude","codex"]
+    owns:
+      sections:
+        - file: ".agents/adapters/codex/rules/cook.rules"
+          id: "io.github.lmarqs.cookbook:agents#connect/commands"
+        - file: ".gitignore"
+          id: "io.github.lmarqs.cookbook:agents#connect/harnesses"
+      keys:
+        - file: ".agents/adapters/claude/settings.json"
+          path: ["hooks","SessionStart"]
+        - file: ".agents/adapters/claude/settings.json"
+          path: ["permissions"]
+        - file: ".agents/adapters/codex/config.toml"
+          path: ["approval_policy"]
+        - file: ".agents/adapters/codex/config.toml"
+          path: ["sandbox_mode"]
+        - file: ".agents/adapters/codex/config.toml"
+          path: ["sandbox_workspace_write","network_access"]
+        - file: ".agents/adapters/codex/hooks.json"
+          path: ["hooks","SessionStart"]
+      files:
+        - ".agents/hooks/session-start"
+      links:
+        - ".claude/settings.json"
+        - ".claude/skills"
+        - ".codex/config.toml"
+        - ".codex/hooks.json"
+        - ".codex/rules"
+  - name: "io.github.lmarqs.cookbook:agents#seed"
+    source: "io.github.lmarqs.cookbook:agents:13.0.0#seed"
+    sha256: "1f32f8eb5a0f69cafd524e5503a11c2afc5eda10feabccd81b3b53ae62645032"
+    arguments: {}
+    owns:
+      files:
+        - ".agents/skills/agents-layout/SKILL.md"
+        - ".agents/skills/agents-layout/agents/openai.yaml"
+        - ".agents/skills/agents-layout/references/adopt.md"
+        - ".agents/skills/agents-layout/references/agents-md.md"
+        - ".agents/skills/agents-layout/references/changes.md"
+        - ".agents/skills/agents-layout/references/claude.md"
+        - ".agents/skills/agents-layout/references/codex.md"
+        - ".agents/skills/agents-layout/references/design.md"
+        - ".agents/skills/agents-layout/references/glossary.md"
+        - ".agents/skills/agents-layout/references/investigate.md"
+        - ".agents/skills/agents-layout/references/memory.md"
+        - ".agents/skills/agents-layout/references/policy.md"
+        - ".agents/skills/agents-layout/references/review.md"
+        - ".agents/skills/agents-layout/references/subagents.md"
+        - ".agents/skills/agents-layout/scripts/check.sh"
+        - ".agents/skills/agents-layout/templates/AGENTS.template.md"
+        - ".agents/skills/agents-layout/templates/README.template.md"
+        - ".agents/skills/agents-layout/templates/policy.template.yaml"

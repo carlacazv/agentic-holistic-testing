@@ -1,2 +1,3 @@
 [tools]
 node = "22"
+"github:lmarqs/the-cook" = "13.0.0"
