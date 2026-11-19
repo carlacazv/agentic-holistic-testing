@@ -93,3 +93,11 @@ test("plan bundle renders checksum-valid artifacts and envelope", async (t) => {
   });
   assert.equal(result.envelope.artifacts.length, PLAN_REQUIRED_ARTIFACTS.length);
 });
+
+test("fault injection is an accepted technique for recovery rules", async () => {
+  const bundle = await fixture();
+  bundle.test_cases.find((entry) => entry.id === "case-error").technique = "fault-injection";
+  assert.equal(validatePlanBundle(bundle).valid, true);
+  bundle.test_cases.find((entry) => entry.id === "case-error").technique = "chaos-guessing";
+  assert.match(validatePlanBundle(bundle).errors.join("\n"), /case-error\/technique: unknown technique/);
+});

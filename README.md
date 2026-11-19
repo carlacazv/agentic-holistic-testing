@@ -46,7 +46,7 @@ Independent audits need an authorized target environment rather than a plan, and
 
 | Skill | What it does |
 | --- | --- |
-| `explore` | Session-based exploratory testing under an authorized charter and timebox, with indexed redacted evidence and one local reproduction folder per defect. |
+| `explore` | Session-based exploratory testing under an authorized charter and timebox, with indexed redacted evidence, one execution record per planned case, findings reconciled against later decisions and the tracker before they count as defects, and one local reproduction folder per finding. |
 | `accessibility` | WCAG 2.2 AA scope combining axe with manual checks. Automated passes alone stay partial evidence, and the output is not a certification. |
 | `performance` | Compares declared budgets, or establishes a repeatable Lighthouse and API baseline that reports uncertainty instead of inventing an SLA. |
 

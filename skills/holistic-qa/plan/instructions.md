@@ -24,11 +24,13 @@ If no testable behavior source exists, return `blocked` with a recoverable error
    - Scenario testing for end-to-end user or service journeys.
    - Pairwise selection for broad independent configuration factors.
    - Error guessing for failures suggested by architecture, incidents, and domain experience.
+   - Fault injection for recovery rules: server errors, aborted connections, partial failure of one dependency among several, unknown response values, blocked third-party scripts, and client clock skew.
 5. Select exploratory heuristics, explicitly evaluating SFDIPOT and FEW HICCUPPS. Record selected/not selected and why.
 6. Write cases and ordered steps. Every case must link to at least one requirement or risk.
 7. Link every accepted requirement and risk to tests. If testing is not planned, use only `deferred`, `waived`, `externally-covered`, or `not-testable` and record a concrete rationale.
-8. Declare test-data, account, permission, date/time, environment, and dependency prerequisites. Do not create them.
-9. Validate the normalized bundle with `validatePlanBundle`, render it with `writePlanBundle`, validate artifact checksums, and finalize using the shared return envelope.
+8. Declare test-data, account, permission, date/time, environment, and dependency prerequisites. Do not create them. Name the time window for cases that only run at certain hours, account state that cannot be forged in the target environment, and shared credentials or payment test instruments that other testers may exhaust, with the provider-documented fallback.
+9. Before disposing of or testing a requirement, read later decisions on the source: approval comments, accepted deviations, and linked design decisions. Record a requirement that such a decision superseded with the deciding source, so exploration does not report it as a defect.
+10. Validate the normalized bundle with `validatePlanBundle`, render it with `writePlanBundle`, validate artifact checksums, and finalize using the shared return envelope.
 
 ## Required durable artifacts
 
