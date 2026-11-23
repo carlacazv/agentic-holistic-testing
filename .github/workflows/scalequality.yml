@@ -1,0 +1,15 @@
+name: ScaleQuality
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  scalequality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # full history: durability is measured with git blame
+      # Tests with coverage run here, before the check, so coverage is measured
+      - run: npx @scalequality/check@latest --token "$SQ_TOKEN" --project ece66c85-cc33-449f-a2e2-50c1f5b584ac --host https://app.scalequality.io
+        env:
+          SQ_TOKEN: ${{ secrets.SQ_TOKEN }}
